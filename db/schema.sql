@@ -1,0 +1,65 @@
+CREATE TABLE place
+(
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(256) NOT NULL
+) DEFAULT CHARACTER SET utf8;
+
+CREATE TABLE person
+(
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(256) NOT NULL UNIQUE,
+  INDEX (name)
+) DEFAULT CHARACTER SET utf8;
+
+CREATE TABLE tag
+(
+  id VARCHAR(32) NOT NULL PRIMARY KEY
+) DEFAULT CHARACTER SET utf8;
+
+CREATE TABLE place_tag
+(
+  place_id INT NOT NULL,
+  tag_id INT NOT NULL,
+  PRIMARY KEY (place_id, tag_id)
+) DEFAULT CHARACTER SET utf8;
+
+CREATE TABLE person_tag
+(
+  person_id INT NOT NULL,
+  tag_id INT NOT NULL,
+  type CHAR NOT NULL,
+  PRIMARY KEY (person_id, tag_id, type)
+) DEFAULT CHARACTER SET utf8;
+
+CREATE TABLE lunch_time
+(
+  date DATE NOT NULL PRIMARY KEY
+) DEFAULT CHARACTER SET utf8;
+
+CREATE TABLE lunch
+(
+  lunch_time_id DATE NOT NULL PRIMARY KEY,
+  place_id INT NOT NULL
+) DEFAULT CHARACTER SET utf8;
+
+CREATE TABLE lunch_participant
+(
+  person_id INT NOT NULL,
+  lunch_time_id DATE NOT NULL,
+  PRIMARY KEY (person_id, lunch_time_id)
+) DEFAULT CHARACTER SET utf8;
+
+CREATE TABLE lunch_vote
+(
+  lunch_participant_id INT NOT NULL,
+  type CHAR NOT NULL,
+  PRIMARY KEY (lunch_participant_id, type)
+) DEFAULT CHARACTER SET utf8;
+
+CREATE TABLE place_vote
+(
+  place_vote_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  place_id INT NOT NULL,
+  person_id INT NOT NULL,
+  type CHAR
+) DEFAULT CHARACTER SET utf8;
