@@ -39,4 +39,9 @@ class PersonService {
         return dao.insertPerson(name);
     }
 
+    void addTag(int personId, String tag, TagType type) {
+        if (!dao.getTags(personId, type).contains(new Tag(tag))) {
+            dao.insertTag(personId, tag, type);
+        }
+    }
 }

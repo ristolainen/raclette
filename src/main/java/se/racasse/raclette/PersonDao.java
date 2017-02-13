@@ -59,8 +59,15 @@ class PersonDao {
 
     Collection<Tag> getTags(int personId, TagType tagType) {
         return jdbcTemplate.query("select tag_id from person_tag where person_id = :personId and type = :tagType",
-                new MapSqlParameterSource().addValue("personId", personId).addValue("tagType", tagType.toString().charAt(0)),
+                new MapSqlParameterSource().addValue("personId", personId).addValue("tagType", tagType.toString().substring(0, 1)),
                 (resultSet, rowNum) -> new Tag(resultSet.getString("tag_id")));
     }
 
+    void insertTag(int personId, String tag, TagType type) {
+        jdbcTemplate.update("insert into person_tag (person_id, tag_id, type) values (:personId, :tagId, :type)",
+                new MapSqlParameterSource()
+                        .addValue("personId", personId)
+                        .addValue("tagId", tag)
+                        .addValue("type", type.toString().substring(0, 1)));
+    }
 }

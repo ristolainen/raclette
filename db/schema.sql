@@ -19,14 +19,14 @@ CREATE TABLE tag
 CREATE TABLE place_tag
 (
   place_id INT NOT NULL,
-  tag_id INT NOT NULL,
+  tag_id VARCHAR(32) NOT NULL,
   PRIMARY KEY (place_id, tag_id)
 ) DEFAULT CHARACTER SET utf8;
 
 CREATE TABLE person_tag
 (
   person_id INT NOT NULL,
-  tag_id INT NOT NULL,
+  tag_id VARCHAR(32) NOT NULL,
   type CHAR NOT NULL,
   PRIMARY KEY (person_id, tag_id, type)
 ) DEFAULT CHARACTER SET utf8;
@@ -61,5 +61,5 @@ CREATE TABLE place_vote
   place_vote_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   place_id INT NOT NULL,
   person_id INT NOT NULL,
-  type CHAR
+  type CHAR NOT NULL
 ) DEFAULT CHARACTER SET utf8;
