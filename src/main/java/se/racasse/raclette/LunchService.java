@@ -21,6 +21,10 @@ class LunchService {
         this.placeService = placeService;
     }
 
+    LocalDate getCurrentLunchTime() {
+        return lunchDao.getLatestLunchTime();
+    }
+
     void addLunchTime(LocalDate date) {
         lunchDao.insertLunchTime(date);
     }
@@ -28,7 +32,15 @@ class LunchService {
     void addLunchTimeParticipant(LocalDate date, String name) {
         final Person person = personService.getPersonByName(name)
                 .orElseThrow(() -> new IllegalArgumentException(String.format("User '%s' not found", name)));
-        lunchDao.insertLunchParticipant(date, person.id);
+        if (!lunchDao.isParticipant(date, person.id)) {
+            lunchDao.insertLunchParticipant(date, person.id);
+        }
+    }
+
+    void removeLunchTimeParticipant(LocalDate date, String name) {
+        final Person person = personService.getPersonByName(name)
+                .orElseThrow(() -> new IllegalArgumentException(String.format("User '%s' not found", name)));
+        lunchDao.removeLunchParticipant(date, person.id);
     }
 
     Optional<Place> resolveLunch(LocalDate date) {

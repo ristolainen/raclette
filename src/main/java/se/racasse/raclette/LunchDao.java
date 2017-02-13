@@ -1,5 +1,6 @@
 package se.racasse.raclette;
 
+import org.springframework.jdbc.core.SingleColumnRowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -20,14 +21,30 @@ class LunchDao {
                 new MapSqlParameterSource().addValue("date", date));
     }
 
+    boolean isParticipant(LocalDate date, int personId) {
+        return jdbcTemplate.queryForObject("select count(*) from lunch_participant where person_id = :personId and lunch_time_id = :date",
+                new MapSqlParameterSource().addValue("personId", personId).addValue("date", date),
+                SingleColumnRowMapper.newInstance(Integer.class)) > 0;
+    }
+
     void insertLunchParticipant(LocalDate date, int personId) {
         jdbcTemplate.update("insert into lunch_participant (person_id, lunch_time_id) values (:personId, :date)",
+                new MapSqlParameterSource().addValue("personId", personId).addValue("date", date));
+    }
+
+    void removeLunchParticipant(LocalDate date, int personId) {
+        jdbcTemplate.update("delete from lunch_participant where person_id = :personId and lunch_time_id = :date",
                 new MapSqlParameterSource().addValue("personId", personId).addValue("date", date));
     }
 
     void setLunch(LocalDate date, Place place) {
         jdbcTemplate.update("insert into lunch (lunch_time_id, place_id) values (:date, :placeId) on duplicate key update place_id = :placeId",
                 new MapSqlParameterSource().addValue("date", date).addValue("placeId", place.id));
+    }
+
+    LocalDate getLatestLunchTime() {
+        return jdbcTemplate.queryForObject("select date from lunch_time order by date desc limit 1",
+                new MapSqlParameterSource(), SingleColumnRowMapper.newInstance(LocalDate.class));
     }
 
 }
