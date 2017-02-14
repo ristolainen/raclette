@@ -5,7 +5,11 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
+
+import static java.util.stream.Collectors.toList;
 
 @Component
 class LunchService {
@@ -13,6 +17,8 @@ class LunchService {
     private final LunchDao lunchDao;
     private final PersonService personService;
     private final PlaceService placeService;
+
+    private Optional<Place> latestSuggestedPlace = Optional.empty();
 
     @Autowired
     LunchService(LunchDao lunchDao, PersonService personService, PlaceService placeService) {
@@ -29,6 +35,12 @@ class LunchService {
         lunchDao.insertLunchTime(date);
     }
 
+    Collection<String> getLunchTimeParticipants(LocalDate date) {
+        return lunchDao.getLunchParticipants(date).stream()
+                .map(personId -> personService.getPerson(personId).name)
+                .collect(toList());
+    }
+
     void addLunchTimeParticipant(LocalDate date, String name) {
         final Person person = personService.getPersonByName(name)
                 .orElseThrow(() -> new IllegalArgumentException(String.format("User '%s' not found", name)));
@@ -43,14 +55,32 @@ class LunchService {
         lunchDao.removeLunchParticipant(date, person.id);
     }
 
-    Optional<Place> resolveLunch(LocalDate date) {
+    Optional<Place> suggestLunchPlace(LocalDate date) {
         final Collection<Place> places = placeService.getAllPlaces();
         final Collection<Person> persons = personService.getParticipatingPersons(date);
-        final LunchSuggestor lunchSuggestor = new LunchSuggestor(places, persons);
+        final Map<Integer, LocalDate> latestLunches = getLatestLunches(places);
+        final LunchSuggestor lunchSuggestor = new LunchSuggestor(places, persons, latestLunches);
         final Optional<Place> place = lunchSuggestor.suggest();
-        place.ifPresent(p -> {
-            lunchDao.setLunch(date, p);
-        });
+        this.latestSuggestedPlace = place;
         return place;
+    }
+
+    public Optional<Place> getLatestSuggestedPlace() {
+        return latestSuggestedPlace;
+    }
+
+    void setLunchPlace(LocalDate date, int placeId) {
+        lunchDao.setLunch(date, placeId);
+    }
+
+    private Map<Integer, LocalDate> getLatestLunches(Collection<Place> places) {
+        final Map<Integer, LocalDate> lunches = new HashMap<>();
+        places.forEach(place -> {
+            final Optional<LocalDate> latestLunch = lunchDao.getLatestLunchForPlace(place.id);
+            latestLunch.ifPresent(date -> {
+                lunches.put(place.id, date);
+            });
+        });
+        return lunches;
     }
 }

@@ -17,6 +17,14 @@ class PersonService {
         this.dao = dao;
     }
 
+    Person getPerson(int personId) {
+        final Person person = dao.getPerson(personId);
+        person.preferredTags = dao.getPreferredTags(person.id);
+        person.dislikedTags = dao.getDislikedTags(person.id);
+        person.requiredTags = dao.getRequiredTags(person.id);
+        return person;
+    }
+
     Optional<Person> getPersonByName(String name) {
         return dao.getPersonByName(name).flatMap(person -> {
             person.preferredTags = dao.getPreferredTags(person.id);

@@ -26,6 +26,12 @@ class PersonDao {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    Person getPerson(int personId) {
+        return jdbcTemplate.queryForObject("select * from person where id = :id",
+                new MapSqlParameterSource("id", personId),
+                PERSON_ROW_MAPPER);
+    }
+
     Optional<Person> getPersonByName(String name) {
         return jdbcTemplate.query("select * from person where name = :name",
                 new MapSqlParameterSource("name", name),
@@ -70,4 +76,5 @@ class PersonDao {
                         .addValue("tagId", tag)
                         .addValue("type", type.toString().substring(0, 1)));
     }
+
 }

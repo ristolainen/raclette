@@ -49,7 +49,7 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
     @PostConstruct
     public void init() {
         session.addMessagePostedListener(this);
-        lunchChannel = session.findChannelByName("raclette-dev");
+        lunchChannel = session.findChannelByName("random");
     }
 
     @Scheduled(cron = "0 0 1 * * MON-FRI")
@@ -109,6 +109,9 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
 
     private void handleCommand(SlackMessagePosted event, String cmd, List<String> params) {
         switch (cmd) {
+            case "help":
+                handleHelpCommand(event, params);
+                return;
             case "get":
                 handleGetCommand(event, params);
                 return;
@@ -118,14 +121,35 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
             case "lunch":
                 handleLunchCommand(event, params);
                 return;
-            case "decide":
-                handleDecideCommand(event, params);
-                return;
             case "tag":
                 handleTagCommand(event, params);
                 return;
         }
         sendMessage(event.getChannel(), "What?");
+    }
+
+    private void handleHelpCommand(SlackMessagePosted event, List<String> params) {
+        final ImmutableList.Builder<String> msg = ImmutableList.builder();
+        msg.add("`get` get information about stuff");
+        msg.add("• `get places` list all places");
+        msg.add("• `get place [name]` get info about a place");
+        msg.add("• `get me` get info about me");
+        msg.add("• `get person [name]` get info about a person");
+        msg.add("`lunch` about todays lunch");
+        msg.add("• `lunch status` current status for today's lunch");
+        msg.add("• `lunch +` include me in today's lunch gang");
+        msg.add("• `lunch -` exclude me from today's lunch gang");
+        msg.add("• `lunch decide` decide the latest suggested place as today's lunch place");
+        msg.add("• `lunch decide [name]` decide a specific place as today's lunch place");
+        msg.add("`tag` do some tagging");
+        msg.add("• `tag place [name] [tag]` tag a place, e.g: `tag place guldfisken sockerchock`");
+        msg.add("• `tag prefer [tag]` add a prefer tag to me, e.g: `tag prefer fredagsburgare`");
+        msg.add("• `tag dislike [tag]` add a dislike tag to me, e.g: `tag dislike skaldjursplatå`");
+        msg.add("• `tag require [tag]` add a require tag to me, e.g: `tag require vegetariskt`");
+        msg.add("`add` add stuff");
+        msg.add("• `add place [name]` add a place, keep it to one lower case word for simplicity");
+        msg.add("• `add me` add me as a person @raclette knows about");
+        sendMultilineMessage(event.getChannel(), msg.build());
     }
 
     private void handleGetCommand(SlackMessagePosted event, List<String> params) {
@@ -233,24 +257,52 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
 
     private void handleDecideCommand(SlackMessagePosted event, List<String> params) {
         final LocalDate lunchTime = lunchService.getCurrentLunchTime();
-        final Optional<Place> decidedPlace = lunchService.resolveLunch(lunchTime);
-        if (decidedPlace.isPresent()) {
-            sendMessage(event.getChannel(), String.format("Today's lunch will be at %s", decidedPlace.get().name));
+        Optional<Place> place;
+        if (params.size() > 1) {
+            place = placeService.getPlaceByName(params.get(1));
+            if (!place.isPresent()) {
+                sendMessage(event.getChannel(), String.format("I know no place called '%s'", params.get(1)));
+                return;
+            }
         } else {
-            sendMessage(event.getChannel(), "Couldn't decide today's lunch place");
+            place = lunchService.getLatestSuggestedPlace();
+            if (!place.isPresent()) {
+                sendMessage(event.getChannel(), "No place is suggested");
+                return;
+            }
         }
+        lunchService.setLunchPlace(lunchTime, place.get().id);
+        sendMessage(event.getChannel(), String.format("Today's lunch will be at *%s*", place.get().name));
     }
 
     private void handleLunchCommand(SlackMessagePosted event, List<String> params) {
         switch (params.get(0).toLowerCase()) {
+            case "status":
+                handleLunchStatus(event);
+                return;
             case "+":
                 addParticipant(event.getChannel(), event.getSender().getUserName());
                 return;
             case "-":
                 removeParticipant(event.getChannel(), event.getSender().getUserName());
                 return;
+            case "decide":
+                handleDecideCommand(event, params);
+                return;
         }
         sendMessage(event.getChannel(), "What?");
+    }
+
+    private void handleLunchStatus(SlackMessagePosted event) {
+        final LocalDate currentLunchTime = lunchService.getCurrentLunchTime();
+        final Collection<String> participants = lunchService.getLunchTimeParticipants(currentLunchTime);
+        final Optional<Place> suggestedPlace = lunchService.suggestLunchPlace(currentLunchTime);
+        final ImmutableList.Builder<String> msg = ImmutableList.builder();
+        msg.add(String.format("Lunch status for *%s*", currentLunchTime.format(DateTimeFormatter.ISO_DATE)));
+        msg.add("Participants");
+        msg.addAll(participants.stream().map(name -> "• " + name).collect(toList()));
+        suggestedPlace.ifPresent(place -> msg.add(String.format("Suggested place: *%s*", suggestedPlace.get().name)));
+        sendMultilineMessage(event.getChannel(), msg.build());
     }
 
     private void handleAddCommand(SlackMessagePosted event, List<String> params) {
@@ -281,7 +333,9 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
     }
 
     private List<String> getCommand(String message) {
-        final String stripped = StringUtils.delete(message, "<@" + me().getId() + ">");
+        final String tag = "<@" + me().getId() + ">";
+        String stripped = StringUtils.delete(message, tag + ":");
+        stripped = StringUtils.delete(stripped, tag);
         return Splitter.on(CharMatcher.whitespace()).trimResults().omitEmptyStrings().splitToList(stripped);
     }
 
@@ -290,7 +344,7 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
     }
 
     private boolean isMessageForMe(SlackMessagePosted message) {
-        return message.getMessageContent().contains(me().getId());
+        return message.getChannel().isDirect() || message.getMessageContent().contains(me().getId());
     }
 
     private SlackPersona me() {

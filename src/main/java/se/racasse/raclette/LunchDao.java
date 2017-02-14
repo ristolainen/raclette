@@ -6,6 +6,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.util.Collection;
+import java.util.Optional;
 
 @Component
 class LunchDao {
@@ -37,9 +39,9 @@ class LunchDao {
                 new MapSqlParameterSource().addValue("personId", personId).addValue("date", date));
     }
 
-    void setLunch(LocalDate date, Place place) {
+    void setLunch(LocalDate date, int placeId) {
         jdbcTemplate.update("insert into lunch (lunch_time_id, place_id) values (:date, :placeId) on duplicate key update place_id = :placeId",
-                new MapSqlParameterSource().addValue("date", date).addValue("placeId", place.id));
+                new MapSqlParameterSource().addValue("date", date).addValue("placeId", placeId));
     }
 
     LocalDate getLatestLunchTime() {
@@ -47,4 +49,14 @@ class LunchDao {
                 new MapSqlParameterSource(), SingleColumnRowMapper.newInstance(LocalDate.class));
     }
 
+    Optional<LocalDate> getLatestLunchForPlace(int placeId) {
+        return jdbcTemplate.query("select lunch_time_id from lunch where place_id = :placeId",
+                new MapSqlParameterSource("placeId", placeId), SingleColumnRowMapper.newInstance(LocalDate.class))
+                .stream().findFirst();
+    }
+
+    Collection<Integer> getLunchParticipants(LocalDate date) {
+        return jdbcTemplate.query("select person_id from lunch_participant where lunch_time_id = :date",
+                new MapSqlParameterSource("date", date), SingleColumnRowMapper.newInstance(Integer.class));
+    }
 }

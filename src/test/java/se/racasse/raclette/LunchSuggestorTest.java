@@ -1,8 +1,10 @@
 package se.racasse.raclette;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
@@ -21,7 +23,8 @@ public class LunchSuggestorTest {
         person.preferredTags.add(new Tag("burger"));
         final LunchSuggestor lunchSuggestor = new LunchSuggestor(
                 Collections.singleton(place),
-                Collections.singleton(person));
+                Collections.singleton(person),
+                Collections.emptyMap());
         final Optional<Place> suggestedPlace = lunchSuggestor.suggest();
 
         assertTrue(suggestedPlace.isPresent());
@@ -37,7 +40,8 @@ public class LunchSuggestorTest {
         person.preferredTags.add(new Tag("buffe"));
         final LunchSuggestor lunchSuggestor = new LunchSuggestor(
                 ImmutableSet.of(place1, place2),
-                Collections.singleton(person));
+                Collections.singleton(person),
+                Collections.emptyMap());
         final Optional<Place> suggestedPlace = lunchSuggestor.suggest();
 
         assertTrue(suggestedPlace.isPresent());
@@ -57,15 +61,38 @@ public class LunchSuggestorTest {
         person2.requiredTags.add(new Tag("close"));
         final LunchSuggestor lunchSuggestor = new LunchSuggestor(
                 ImmutableSet.of(place1, place2),
-                ImmutableSet.of(person1, person2));
+                ImmutableSet.of(person1, person2),
+                Collections.emptyMap());
         final Optional<Place> suggestedPlace = lunchSuggestor.suggest();
 
         assertTrue(suggestedPlace.isPresent());
         assertThat(suggestedPlace.get(), sameInstance(place2));
     }
 
+    @Test
+    public void suggestWithTwoPlacesAndOnePersonAndLatestDates() throws Exception {
+        final Place place1 = createPlace(1,"place1", "burger");
+        final Place place2 = createPlace(2,"place2", "burger");
+        place1.upVotes.add(new Vote());
+        final Person person1 = createPerson("person1");
+        person1.preferredTags.add(new Tag("buffe"));
+        final LunchSuggestor lunchSuggestor = new LunchSuggestor(
+                ImmutableSet.of(place1, place2),
+                ImmutableSet.of(person1),
+                ImmutableMap.of(place1.id, LocalDate.now().minusDays(4), place2.id, LocalDate.now().minusDays(2)));
+        final Optional<Place> suggestedPlace = lunchSuggestor.suggest();
+
+        assertTrue(suggestedPlace.isPresent());
+        assertThat(suggestedPlace.get(), sameInstance(place1));
+    }
+
     private Place createPlace(String name, String... tags) {
+        return createPlace(0, name, tags);
+    }
+
+    private Place createPlace(int id, String name, String... tags) {
         final Place place = new Place();
+        place.id = id;
         place.name = name;
         place.tags = Arrays.stream(tags).map(Tag::new).collect(toSet());
         return place;

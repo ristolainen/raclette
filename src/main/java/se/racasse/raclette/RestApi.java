@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 class RestApi {
@@ -56,6 +57,8 @@ class RestApi {
     @PutMapping("lunches/{date}")
     public int setLunch(@PathVariable String date) {
         final LocalDate lunchDate = LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE);
-        return lunchService.resolveLunch(lunchDate).orElseGet(Place::new).id;
+        final Optional<Place> place = lunchService.suggestLunchPlace(lunchDate);
+        place.ifPresent(p -> lunchService.setLunchPlace(lunchDate, p.id));
+        return place.orElseGet(Place::new).id;
     }
 }
