@@ -13,15 +13,13 @@ public class Person {
     String name;
     Collection<Tag> requiredTags = new HashSet<>();
     Collection<Tag> preferredTags = new HashSet<>();
-    Collection<Tag> dislikedTags = new HashSet<>();
 
     boolean accepts(Collection<Tag> placeTags) {
         return requiredTags.stream().allMatch(placeTags::contains);
     }
 
     int scoreTags(Collection<Tag> placeTags) {
-        return tagIntersection(preferredTags, placeTags).size()
-                - tagIntersection(dislikedTags, placeTags).size();
+        return tagIntersection(preferredTags, placeTags).size();
     }
 
     private Set<Tag> tagIntersection(Collection<Tag> tags, Collection<Tag> placeTags) {

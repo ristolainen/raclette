@@ -20,7 +20,6 @@ class PersonService {
     Person getPerson(int personId) {
         final Person person = dao.getPerson(personId);
         person.preferredTags = dao.getPreferredTags(person.id);
-        person.dislikedTags = dao.getDislikedTags(person.id);
         person.requiredTags = dao.getRequiredTags(person.id);
         return person;
     }
@@ -28,7 +27,6 @@ class PersonService {
     Optional<Person> getPersonByName(String name) {
         return dao.getPersonByName(name).flatMap(person -> {
             person.preferredTags = dao.getPreferredTags(person.id);
-            person.dislikedTags = dao.getDislikedTags(person.id);
             person.requiredTags = dao.getRequiredTags(person.id);
             return Optional.of(person);
         });
@@ -37,7 +35,6 @@ class PersonService {
     Collection<Person> getParticipatingPersons(LocalDate date) {
         return dao.getParticipatingPersons(date).stream().map(person -> {
             person.preferredTags = dao.getPreferredTags(person.id);
-            person.dislikedTags = dao.getDislikedTags(person.id);
             person.requiredTags = dao.getRequiredTags(person.id);
             return person;
         }).collect(toSet());
@@ -51,5 +48,9 @@ class PersonService {
         if (!dao.getTags(personId, type).contains(new Tag(tag))) {
             dao.insertTag(personId, tag, type);
         }
+    }
+
+    void removeTag(int personId, String tag, TagType type) {
+        dao.deleteTag(personId, tag, type);
     }
 }

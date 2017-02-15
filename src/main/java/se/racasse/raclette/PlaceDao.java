@@ -70,4 +70,9 @@ class PlaceDao {
         return jdbcTemplate.query("select * from place where name = :name",
                 new MapSqlParameterSource("name", name), PLACE_ROW_MAPPER).stream().findFirst();
     }
+
+    void deletePlaceTag(int placeId, String tag) {
+        jdbcTemplate.update("delete from place_tag where place_id = :placeId and tag_id = :tagId",
+                new MapSqlParameterSource().addValue("placeId", placeId).addValue("tagId", tag));
+    }
 }

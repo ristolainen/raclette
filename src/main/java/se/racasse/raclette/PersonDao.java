@@ -55,10 +55,6 @@ class PersonDao {
         return getTags(personId, TagType.PREFER);
     }
 
-    Collection<Tag> getDislikedTags(int personId) {
-        return getTags(personId, TagType.DISLIKE);
-    }
-
     Collection<Tag> getRequiredTags(int personId) {
         return getTags(personId, TagType.REQUIRE);
     }
@@ -77,4 +73,11 @@ class PersonDao {
                         .addValue("type", type.toString().substring(0, 1)));
     }
 
+    void deleteTag(int personId, String tag, TagType type) {
+        jdbcTemplate.update("delete from person_tag where person_id = :personId and tag_id = :tagId and type = :type",
+                new MapSqlParameterSource()
+                        .addValue("personId", personId)
+                        .addValue("tagId", tag)
+                        .addValue("type", type.toString().substring(0, 1)));
+    }
 }

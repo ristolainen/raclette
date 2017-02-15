@@ -42,4 +42,8 @@ class PlaceService {
             dao.insertPlaceTag(placeId, tag);
         }
     }
+
+    void removePlaceTag(int placeId, String tag) {
+        dao.deletePlaceTag(placeId, tag);
+    }
 }
