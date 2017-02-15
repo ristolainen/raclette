@@ -121,6 +121,9 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
             case "lunch":
                 handleLunchCommand(event, params);
                 return;
+            case "vote":
+                handleVoteCommand(event, params);
+                return;
             case "tag":
                 handleTagCommand(event, params);
                 return;
@@ -144,8 +147,13 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
         msg.add("• `lunch add [name]` include someone in today's lunch gang");
         msg.add("• `lunch remove me` exclude me from today's lunch gang");
         msg.add("• `lunch remove [name]` exclude someone from today's lunch gang");
+        msg.add("• `lunch vote [place] up` give a place an up-vote for this lunch");
+        msg.add("• `lunch vote [place] down` give a place a down-vote for this lunch");
         msg.add("• `lunch decide` decide the latest suggested place as today's lunch place");
         msg.add("• `lunch decide [name]` decide a specific place as today's lunch place");
+        msg.add("`vote` vote for places");
+        msg.add("• `vote [place] up` give a place an up-vote");
+        msg.add("• `vote [place] down` give a place an up-vote");
         msg.add("`tag` do some tagging");
         msg.add("• `tag place [name] [tag]` tag a place, e.g: `tag place guldfisken sockerchock`");
         msg.add("• `tag prefer [tag]` add a prefer tag to me, e.g: `tag prefer fredagsburgare`");
@@ -178,7 +186,9 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
     private void handleGetPlaces(SlackMessagePosted event) {
         final Collection<Place> places = placeService.getAllPlaces();
         sendMultilineMessage(event.getChannel(),
-                places.stream().map(p -> String.format("• %s [%s]", p.name, Joiner.on(',').join(p.tags))).collect(toList()));
+                places.stream()
+                        .map(p -> String.format("• %s - [%s]", p.name, Joiner.on(',').join(p.tags)))
+                        .collect(toList()));
     }
 
     private void handleGetPlace(SlackMessagePosted event, String name) {
@@ -215,6 +225,20 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
         msg.add("Requires");
         msg.addAll(requires);
         sendMultilineMessage(event.getChannel(), msg.build());
+    }
+
+    private void handleVoteCommand(SlackMessagePosted event, List<String> params) {
+        final String placeName = params.get(0);
+        final VoteType type = VoteType.valueOf(params.get(1).toUpperCase());
+        final Optional<Place> place = placeService.getPlaceByName(placeName);
+        if (!place.isPresent()) {
+            sendMessage(event.getChannel(), String.format("I know no place called '%s'", params.get(1)));
+            return;
+        }
+        final String me = event.getSender().getUserName();
+        final Person person = personService.getPersonByName(me).get();
+        placeService.addVote(person.id, place.get().id, type);
+        sendMessage(event.getChannel(), String.format("Added %s-vote for %s", type.name().toLowerCase(), place.get().name));
     }
 
     private void handleTagCommand(SlackMessagePosted event, List<String> params) {
@@ -326,11 +350,28 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
             case "remove":
                 handleLunchRemove(event, params);
                 return;
+            case "vote":
+                handleLunchVote(event, params);
+                return;
             case "decide":
                 handleDecideCommand(event, params);
                 return;
         }
         sendMessage(event.getChannel(), "What?");
+    }
+
+    private void handleLunchVote(SlackMessagePosted event, List<String> params) {
+        final LocalDate lunchTime = lunchService.getCurrentLunchTime();
+        final String placeName = params.get(1);
+        final VoteType type = VoteType.valueOf(params.get(2).toUpperCase());
+        final Optional<Place> place = placeService.getPlaceByName(placeName);
+        if (!place.isPresent()) {
+            sendMessage(event.getChannel(), String.format("I know no place called '%s'", params.get(1)));
+            return;
+        }
+        final String me = event.getSender().getUserName();
+        lunchService.addLunchVote(me, lunchTime, place.get().id, type);
+        sendMessage(event.getChannel(), String.format("Added lunch %s-vote for %s", type.name().toLowerCase(), place.get().name));
     }
 
     private void handleLunchAdd(SlackMessagePosted event, List<String> params) {

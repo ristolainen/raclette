@@ -46,4 +46,8 @@ class PlaceService {
     void removePlaceTag(int placeId, String tag) {
         dao.deletePlaceTag(placeId, tag);
     }
+
+    void addVote(int personId, int placeId, VoteType type) {
+        dao.insertVote(personId, placeId, type);
+    }
 }

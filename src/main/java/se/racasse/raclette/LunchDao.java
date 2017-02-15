@@ -59,4 +59,15 @@ class LunchDao {
         return jdbcTemplate.query("select person_id from lunch_participant where lunch_time_id = :date",
                 new MapSqlParameterSource("date", date), SingleColumnRowMapper.newInstance(Integer.class));
     }
+
+    void insertLunchVote(int personId, LocalDate lunchTime, int placeId, VoteType type) {
+        jdbcTemplate.update("insert into lunch_vote (person_id, lunch_time_id, place_id, type) " +
+                        "values (:personId, :lunchTimeId, :placeId, :type) " +
+                        "on duplicate key update type = :type",
+                new MapSqlParameterSource()
+                        .addValue("personId", personId)
+                        .addValue("lunchTimeId", lunchTime)
+                        .addValue("placeId", placeId)
+                        .addValue("type", type.name().substring(0, 1)));
+    }
 }

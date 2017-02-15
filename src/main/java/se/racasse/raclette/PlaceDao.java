@@ -75,4 +75,12 @@ class PlaceDao {
         jdbcTemplate.update("delete from place_tag where place_id = :placeId and tag_id = :tagId",
                 new MapSqlParameterSource().addValue("placeId", placeId).addValue("tagId", tag));
     }
+
+    void insertVote(int personId, int placeId, VoteType type) {
+        jdbcTemplate.update("insert place_vote (place_id, person_id, type) values (:placeId, :personId, :type)",
+                new MapSqlParameterSource()
+                        .addValue("placeId", placeId)
+                        .addValue("personId", personId)
+                        .addValue("type", type.name().substring(0, 1)));
+    }
 }

@@ -51,9 +51,11 @@ CREATE TABLE lunch_participant
 
 CREATE TABLE lunch_vote
 (
-  lunch_participant_id INT NOT NULL,
+  person_id INT NOT NULL,
+  lunch_time_id DATE NOT NULL,
+  place_id INT NOT NULL,
   type CHAR NOT NULL,
-  PRIMARY KEY (lunch_participant_id, type)
+  PRIMARY KEY (person_id, lunch_time_id, place_id)
 ) DEFAULT CHARACTER SET utf8;
 
 CREATE TABLE place_vote

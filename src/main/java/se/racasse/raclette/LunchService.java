@@ -35,6 +35,12 @@ class LunchService {
         lunchDao.insertLunchTime(date);
     }
 
+    boolean isLunchTimeParticipant(LocalDate date, String name) {
+        final Person person = personService.getPersonByName(name)
+                .orElseThrow(() -> new IllegalArgumentException(String.format("User '%s' not found", name)));
+        return lunchDao.isParticipant(date, person.id);
+    }
+
     Collection<String> getLunchTimeParticipants(LocalDate date) {
         return lunchDao.getLunchParticipants(date).stream()
                 .map(personId -> personService.getPerson(personId).name)
@@ -65,7 +71,7 @@ class LunchService {
         return place;
     }
 
-    public Optional<Place> getLatestSuggestedPlace() {
+    Optional<Place> getLatestSuggestedPlace() {
         return latestSuggestedPlace;
     }
 
@@ -82,5 +88,11 @@ class LunchService {
             });
         });
         return lunches;
+    }
+
+    void addLunchVote(String name, LocalDate lunchTime, int placeId, VoteType type) {
+        final Person person = personService.getPersonByName(name)
+                .orElseThrow(() -> new IllegalArgumentException(String.format("User '%s' not found", name)));
+        lunchDao.insertLunchVote(person.id, lunchTime, placeId, type);
     }
 }
