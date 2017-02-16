@@ -17,8 +17,33 @@ public class Place {
         return persons.stream().allMatch(p -> p.accepts(tags));
     }
 
-    public float score(Collection<Person> persons, LocalDate latestLunch) {
-        return scoreTags(persons) + scoreUpVotes() + scoreDownVotes() + timeSinceLastLunchBoost(latestLunch);
+    public float score(PlaceScoringContext scoringContext) {
+        return scoreTags(scoringContext.persons)
+                + scoreLunchUpVotes(scoringContext.lunchUpVotes)
+                + scoreLunchDownVotes(scoringContext.lunchUpVotes)
+                + scoreUpVotes()
+                + scoreDownVotes()
+                + timeSinceLastLunchBoost(scoringContext.latestLunch);
+    }
+
+    private int scoreTags(Collection<Person> persons) {
+        return persons.stream().mapToInt(person -> person.scoreTags(tags)).sum();
+    }
+
+    private int scoreLunchUpVotes(Collection<Vote> votes) {
+        return votes.size();
+    }
+
+    private int scoreLunchDownVotes(Collection<Vote> votes) {
+        return votes.size();
+    }
+
+    private int scoreUpVotes() {
+        return upVotes.size();
+    }
+
+    private int scoreDownVotes() {
+        return downVotes.size();
     }
 
     private float timeSinceLastLunchBoost(LocalDate latestLunch) {
@@ -29,15 +54,4 @@ public class Place {
         return (float) (1 + 4 * Math.log(daysBetween));
     }
 
-    private int scoreTags(Collection<Person> persons) {
-        return persons.stream().mapToInt(person -> person.scoreTags(tags)).sum();
-    }
-
-    private int scoreUpVotes() {
-        return upVotes.size();
-    }
-
-    private int scoreDownVotes() {
-        return downVotes.size();
-    }
 }

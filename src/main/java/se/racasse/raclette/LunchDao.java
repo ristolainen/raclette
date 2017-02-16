@@ -70,4 +70,52 @@ class LunchDao {
                         .addValue("placeId", placeId)
                         .addValue("type", type.name().substring(0, 1)));
     }
+
+
+
+    Collection<Vote> getLunchVotesByPersons(LocalDate lunchTime, VoteType voteType, Collection<Integer> personIds) {
+        return jdbcTemplate.query("select * from lunch_vote where lunch_time_id = :lunchTimeId " +
+                        "and type = :type and person_id in (:personIds)",
+                new MapSqlParameterSource()
+                        .addValue("lunchTimeId", lunchTime)
+                        .addValue("personIds", personIds)
+                        .addValue("type", voteType.name().substring(0, 1)),
+                (resultSet, rowNum) -> {
+                    final Vote vote = new Vote();
+                    vote.personId = resultSet.getInt("person_id");
+                    vote.placeId = resultSet.getInt("place_id");
+                    vote.type = voteType;
+                    return vote;
+                });
+    }
+
+    Collection<Vote> getLunchVotesByPlaces(LocalDate lunchTime, Collection<Integer> placeIds) {
+        return jdbcTemplate.query("select * from lunch_vote where lunch_time_id = :lunchTimeId " +
+                        "and place_id in (:placeIds)",
+                new MapSqlParameterSource()
+                        .addValue("lunchTimeId", lunchTime)
+                        .addValue("placeIds", placeIds),
+                (resultSet, rowNum) -> {
+                    final Vote vote = new Vote();
+                    vote.personId = resultSet.getInt("person_id");
+                    vote.placeId = resultSet.getInt("place_id");
+                    vote.type = voteTypeByFirstCharacter(resultSet.getString("type"));
+                    return vote;
+                });
+    }
+
+    private VoteType voteTypeByFirstCharacter(String firstCharacterOfType) {
+        switch (firstCharacterOfType) {
+            case "U":
+                return VoteType.UP;
+            case "D":
+                return VoteType.DOWN;
+        }
+        throw new IllegalStateException();
+    }
+
+    void removeLunchVotes(LocalDate lunchTime, int personId) {
+        jdbcTemplate.update("delete from lunch_vote where lunch_time_id = :lunchTimeId and person_id = :personId",
+                new MapSqlParameterSource().addValue("lunchTimeId", lunchTime).addValue("personId", personId));
+    }
 }

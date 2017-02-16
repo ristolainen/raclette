@@ -1,5 +1,7 @@
 package se.racasse.raclette;
 
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -41,10 +43,15 @@ class LunchService {
         return lunchDao.isParticipant(date, person.id);
     }
 
-    Collection<String> getLunchTimeParticipants(LocalDate date) {
+    Collection<Person> getLunchTimeParticipants(LocalDate date) {
         return lunchDao.getLunchParticipants(date).stream()
-                .map(personId -> personService.getPerson(personId).name)
+                .map(personId -> personService.getPerson(personId))
                 .collect(toList());
+    }
+
+    Multimap<Integer, Vote> getLunchTimeVotesByPlace(LocalDate date) {
+        final Collection<Integer> placeIds = placeService.getAllPlaces().stream().map(p -> p.id).collect(toList());
+        return Multimaps.index(lunchDao.getLunchVotesByPlaces(date, placeIds), vote -> vote.placeId);
     }
 
     void addLunchTimeParticipant(LocalDate date, String name) {
@@ -59,16 +66,25 @@ class LunchService {
         final Person person = personService.getPersonByName(name)
                 .orElseThrow(() -> new IllegalArgumentException(String.format("User '%s' not found", name)));
         lunchDao.removeLunchParticipant(date, person.id);
+        lunchDao.removeLunchVotes(date, person.id);
     }
 
     Optional<Place> suggestLunchPlace(LocalDate date) {
-        final Collection<Place> places = placeService.getAllPlaces();
-        final Collection<Person> persons = personService.getParticipatingPersons(date);
-        final Map<Integer, LocalDate> latestLunches = getLatestLunches(places);
-        final LunchSuggestor lunchSuggestor = new LunchSuggestor(places, persons, latestLunches);
+        final LunchContext lunchContext = new LunchContext();
+        lunchContext.places = placeService.getAllPlaces();
+        lunchContext.participants = personService.getParticipatingPersons(date);
+        lunchContext.latestLunches = getLatestLunches(lunchContext.places);
+        lunchContext.upVotes = getLunchVotesPerParticipant(date, VoteType.UP, lunchContext.participants);
+        lunchContext.downVotes = getLunchVotesPerParticipant(date, VoteType.DOWN, lunchContext.participants);
+        final LunchSuggestor lunchSuggestor = new LunchSuggestor(lunchContext);
         final Optional<Place> place = lunchSuggestor.suggest();
         this.latestSuggestedPlace = place;
         return place;
+    }
+
+    private Multimap<Integer, Vote> getLunchVotesPerParticipant(LocalDate date, VoteType voteType, Collection<Person> participants) {
+        final Collection<Integer> participantIds = participants.stream().map(p -> p.id).collect(toList());
+        return Multimaps.index(lunchDao.getLunchVotesByPersons(date, voteType, participantIds), vote -> vote.placeId);
     }
 
     Optional<Place> getLatestSuggestedPlace() {
@@ -90,9 +106,9 @@ class LunchService {
         return lunches;
     }
 
-    void addLunchVote(String name, LocalDate lunchTime, int placeId, VoteType type) {
-        final Person person = personService.getPersonByName(name)
-                .orElseThrow(() -> new IllegalArgumentException(String.format("User '%s' not found", name)));
+    void addLunchVote(String personName, LocalDate lunchTime, int placeId, VoteType type) {
+        final Person person = personService.getPersonByName(personName)
+                .orElseThrow(() -> new IllegalArgumentException(String.format("User '%s' not found", personName)));
         lunchDao.insertLunchVote(person.id, lunchTime, placeId, type);
     }
 }

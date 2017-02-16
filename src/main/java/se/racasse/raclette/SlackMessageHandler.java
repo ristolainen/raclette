@@ -5,6 +5,8 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import com.ullink.slack.simpleslackapi.SlackChannel;
 import com.ullink.slack.simpleslackapi.SlackPersona;
 import com.ullink.slack.simpleslackapi.SlackSession;
@@ -22,6 +24,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static java.util.stream.Collectors.toList;
@@ -153,7 +156,7 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
         msg.add("• `lunch decide [name]` decide a specific place as today's lunch place");
         msg.add("`vote` vote for places");
         msg.add("• `vote [place] up` give a place an up-vote");
-        msg.add("• `vote [place] down` give a place an up-vote");
+        msg.add("• `vote [place] down` give a place an down-vote");
         msg.add("`tag` do some tagging");
         msg.add("• `tag place [name] [tag]` tag a place, e.g: `tag place guldfisken sockerchock`");
         msg.add("• `tag prefer [tag]` add a prefer tag to me, e.g: `tag prefer fredagsburgare`");
@@ -199,11 +202,23 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
         }
         final Place p = place.get();
         final List<String> tags = p.tags.stream().map(t -> "• " + t.name).collect(toList());
+
         final ImmutableList.Builder<String> msg = ImmutableList.builder();
         msg.add(String.format("*%s*", p.name));
         msg.add(">>>");
         msg.add("Tags");
         msg.addAll(tags);
+        msg.add("Votes");
+        if (p.upVotes.size() > 0) {
+            msg.add(voteTypeToEmoji(VoteType.UP) + " " + p.upVotes.stream()
+                    .map(v -> personService.getPerson(v.personId).name)
+                    .collect(toList()));
+        }
+        if (p.downVotes.size() > 0) {
+            msg.add(voteTypeToEmoji(VoteType.DOWN) + " " + p.downVotes.stream()
+                    .map(v -> personService.getPerson(v.personId))
+                    .collect(toList()));
+        }
         sendMultilineMessage(event.getChannel(), msg.build());
     }
 
@@ -370,6 +385,9 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
             return;
         }
         final String me = event.getSender().getUserName();
+        if (!lunchService.isLunchTimeParticipant(lunchTime, me)) {
+            sendMessage(event.getChannel(), "You must be a lunch participant to do lunch voting");
+        }
         lunchService.addLunchVote(me, lunchTime, place.get().id, type);
         sendMessage(event.getChannel(), String.format("Added lunch %s-vote for %s", type.name().toLowerCase(), place.get().name));
     }
@@ -394,14 +412,38 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
 
     private void handleLunchStatus(SlackMessagePosted event) {
         final LocalDate currentLunchTime = lunchService.getCurrentLunchTime();
-        final Collection<String> participants = lunchService.getLunchTimeParticipants(currentLunchTime);
+        final Map<Integer, Person> participants = Maps.uniqueIndex(lunchService.getLunchTimeParticipants(currentLunchTime), p -> p.id);
+        final Collection<Place> places = placeService.getAllPlaces();
+        final Multimap<Integer, Vote> votesByPlace = lunchService.getLunchTimeVotesByPlace(currentLunchTime);
         final Optional<Place> suggestedPlace = lunchService.suggestLunchPlace(currentLunchTime);
+
         final ImmutableList.Builder<String> msg = ImmutableList.builder();
         msg.add(String.format("Lunch status for *%s*", currentLunchTime.format(DateTimeFormatter.ISO_DATE)));
         msg.add("Participants");
-        msg.addAll(participants.stream().map(name -> "• " + name).collect(toList()));
+        msg.addAll(participants.values().stream().map(person -> "• " + person.name).collect(toList()));
+        msg.add("Votes");
+        places.forEach(place -> {
+            final Collection<Vote> votes = votesByPlace.get(place.id);
+            if (votes.size() > 0) {
+                msg.add("• " + place.name);
+                votes.forEach(vote -> {
+                    final Person person = participants.get(vote.personId);
+                    msg.add("    • " + person.name + " " + voteTypeToEmoji(vote.type));
+                });
+            }
+        });
         suggestedPlace.ifPresent(place -> msg.add(String.format("Suggested place: *%s*", suggestedPlace.get().name)));
         sendMultilineMessage(event.getChannel(), msg.build());
+    }
+
+    private String voteTypeToEmoji(VoteType voteType) {
+        switch (voteType) {
+            case UP:
+                return ":thumbsup:";
+            case DOWN:
+                return ":thumbsdown:";
+        }
+        throw new IllegalStateException();
     }
 
     private void handleAddCommand(SlackMessagePosted event, List<String> params) {

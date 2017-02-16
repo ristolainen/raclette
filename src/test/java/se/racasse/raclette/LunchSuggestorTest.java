@@ -21,10 +21,11 @@ public class LunchSuggestorTest {
         final Place place = createPlace("place1", "burger", "buffe");
         final Person person = createPerson("person1");
         person.preferredTags.add(new Tag("burger"));
-        final LunchSuggestor lunchSuggestor = new LunchSuggestor(
-                Collections.singleton(place),
-                Collections.singleton(person),
-                Collections.emptyMap());
+        final LunchContext lunchContext = new LunchContext();
+        lunchContext.places = Collections.singleton(place);
+        lunchContext.participants = Collections.singleton(person);
+        lunchContext.latestLunches = Collections.emptyMap();
+        final LunchSuggestor lunchSuggestor = new LunchSuggestor(lunchContext);
         final Optional<Place> suggestedPlace = lunchSuggestor.suggest();
 
         assertTrue(suggestedPlace.isPresent());
@@ -38,10 +39,11 @@ public class LunchSuggestorTest {
         final Place place2 = createPlace("place2", "buffe", "pizza");
         final Person person = createPerson("person1");
         person.preferredTags.add(new Tag("buffe"));
-        final LunchSuggestor lunchSuggestor = new LunchSuggestor(
-                ImmutableSet.of(place1, place2),
-                Collections.singleton(person),
-                Collections.emptyMap());
+        final LunchContext lunchContext = new LunchContext();
+        lunchContext.places = ImmutableSet.of(place1, place2);
+        lunchContext.participants = Collections.singleton(person);
+        lunchContext.latestLunches = Collections.emptyMap();
+        final LunchSuggestor lunchSuggestor = new LunchSuggestor(lunchContext);
         final Optional<Place> suggestedPlace = lunchSuggestor.suggest();
 
         assertTrue(suggestedPlace.isPresent());
@@ -59,10 +61,11 @@ public class LunchSuggestorTest {
         person1.preferredTags.add(new Tag("beef"));
         final Person person2 = createPerson("person2");
         person2.requiredTags.add(new Tag("close"));
-        final LunchSuggestor lunchSuggestor = new LunchSuggestor(
-                ImmutableSet.of(place1, place2),
-                ImmutableSet.of(person1, person2),
-                Collections.emptyMap());
+        final LunchContext lunchContext = new LunchContext();
+        lunchContext.places = ImmutableSet.of(place1, place2);
+        lunchContext.participants = ImmutableSet.of(person1, person2);
+        lunchContext.latestLunches = Collections.emptyMap();
+        final LunchSuggestor lunchSuggestor = new LunchSuggestor(lunchContext);
         final Optional<Place> suggestedPlace = lunchSuggestor.suggest();
 
         assertTrue(suggestedPlace.isPresent());
@@ -76,10 +79,11 @@ public class LunchSuggestorTest {
         place1.upVotes.add(new Vote());
         final Person person1 = createPerson("person1");
         person1.preferredTags.add(new Tag("buffe"));
-        final LunchSuggestor lunchSuggestor = new LunchSuggestor(
-                ImmutableSet.of(place1, place2),
-                ImmutableSet.of(person1),
-                ImmutableMap.of(place1.id, LocalDate.now().minusDays(4), place2.id, LocalDate.now().minusDays(2)));
+        final LunchContext lunchContext = new LunchContext();
+        lunchContext.places = ImmutableSet.of(place1, place2);
+        lunchContext.participants = ImmutableSet.of(person1);
+        lunchContext.latestLunches = ImmutableMap.of(place1.id, LocalDate.now().minusDays(4), place2.id, LocalDate.now().minusDays(2));
+        final LunchSuggestor lunchSuggestor = new LunchSuggestor(lunchContext);
         final Optional<Place> suggestedPlace = lunchSuggestor.suggest();
 
         assertTrue(suggestedPlace.isPresent());

@@ -1,7 +1,6 @@
 package se.racasse.raclette;
 
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.SingleColumnRowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
@@ -10,9 +9,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.Optional;
-import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.toSet;
 
 @Component
 class PlaceDao {
@@ -48,10 +44,17 @@ class PlaceDao {
     }
 
     private Collection<Vote> getPlaceVotes(int placeId, VoteType type) {
-        final Integer votes = jdbcTemplate.queryForObject("select count(*) from place_vote where place_id = :placeId and type = :type",
-                new MapSqlParameterSource().addValue("placeId", placeId).addValue("type", type.toString().charAt(0)),
-                SingleColumnRowMapper.newInstance(Integer.class));
-        return Stream.generate(Vote::new).limit(votes).collect(toSet());
+        return jdbcTemplate.query("select * from place_vote where place_id = :placeId and type = :type",
+                new MapSqlParameterSource()
+                        .addValue("placeId", placeId)
+                        .addValue("type", type.name().substring(0, 1)),
+                (resultSet, rowNum) -> {
+                    final Vote vote = new Vote();
+                    vote.placeId = resultSet.getInt("place_id");
+                    vote.personId = resultSet.getInt("person_id");
+                    vote.type = voteTypeByFirstCharacter(resultSet.getString("type"));
+                    return vote;
+                });
     }
 
     int insertPlace(Place place) {
@@ -83,4 +86,15 @@ class PlaceDao {
                         .addValue("personId", personId)
                         .addValue("type", type.name().substring(0, 1)));
     }
+
+    private VoteType voteTypeByFirstCharacter(String firstCharacterOfType) {
+        switch (firstCharacterOfType) {
+            case "U":
+                return VoteType.UP;
+            case "D":
+                return VoteType.DOWN;
+        }
+        throw new IllegalStateException();
+    }
+
 }
