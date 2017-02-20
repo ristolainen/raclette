@@ -1,5 +1,6 @@
 package se.racasse.raclette;
 
+import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,6 +85,9 @@ class LunchService {
 
     private Multimap<Integer, Vote> getLunchVotesPerParticipant(LocalDate date, VoteType voteType, Collection<Person> participants) {
         final Collection<Integer> participantIds = participants.stream().map(p -> p.id).collect(toList());
+        if (participantIds.isEmpty()) {
+            return ImmutableMultimap.of();
+        }
         return Multimaps.index(lunchDao.getLunchVotesByPersons(date, voteType, participantIds), vote -> vote.placeId);
     }
 
