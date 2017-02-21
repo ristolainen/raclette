@@ -20,7 +20,7 @@ public class Place {
     public float score(PlaceScoringContext scoringContext) {
         return scoreTags(scoringContext.persons)
                 + scoreLunchUpVotes(scoringContext.lunchUpVotes)
-                + scoreLunchDownVotes(scoringContext.lunchUpVotes)
+                + scoreLunchDownVotes(scoringContext.lunchDownVotes)
                 + scoreUpVotes()
                 + scoreDownVotes()
                 + timeSinceLastLunchBoost(scoringContext.latestLunch);
@@ -31,19 +31,19 @@ public class Place {
     }
 
     private int scoreLunchUpVotes(Collection<Vote> votes) {
-        return votes.size();
+        return 3 * votes.size();
     }
 
     private int scoreLunchDownVotes(Collection<Vote> votes) {
-        return votes.size();
+        return -3 * votes.size();
     }
 
-    private int scoreUpVotes() {
-        return upVotes.size();
+    private float scoreUpVotes() {
+        return 1.5f * upVotes.size();
     }
 
-    private int scoreDownVotes() {
-        return downVotes.size();
+    private float scoreDownVotes() {
+        return -1.5f * downVotes.size();
     }
 
     private float timeSinceLastLunchBoost(LocalDate latestLunch) {

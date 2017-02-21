@@ -46,7 +46,7 @@ class LunchService {
 
     Collection<Person> getLunchTimeParticipants(LocalDate date) {
         return lunchDao.getLunchParticipants(date).stream()
-                .map(personId -> personService.getPerson(personId))
+                .map(personService::getPerson)
                 .collect(toList());
     }
 
@@ -74,7 +74,7 @@ class LunchService {
         final LunchContext lunchContext = new LunchContext();
         lunchContext.places = placeService.getAllPlaces();
         lunchContext.participants = personService.getParticipatingPersons(date);
-        lunchContext.latestLunches = getLatestLunches(lunchContext.places);
+        lunchContext.latestLunches = getLatestLunches(lunchContext.places, date);
         lunchContext.upVotes = getLunchVotesPerParticipant(date, VoteType.UP, lunchContext.participants);
         lunchContext.downVotes = getLunchVotesPerParticipant(date, VoteType.DOWN, lunchContext.participants);
         final LunchSuggestor lunchSuggestor = new LunchSuggestor(lunchContext);
@@ -99,10 +99,10 @@ class LunchService {
         lunchDao.setLunch(date, placeId);
     }
 
-    private Map<Integer, LocalDate> getLatestLunches(Collection<Place> places) {
+    private Map<Integer, LocalDate> getLatestLunches(Collection<Place> places, LocalDate before) {
         final Map<Integer, LocalDate> lunches = new HashMap<>();
         places.forEach(place -> {
-            final Optional<LocalDate> latestLunch = lunchDao.getLatestLunchForPlace(place.id);
+            final Optional<LocalDate> latestLunch = lunchDao.getLatestLunchForPlace(place.id, before);
             latestLunch.ifPresent(date -> {
                 lunches.put(place.id, date);
             });

@@ -49,9 +49,10 @@ class LunchDao {
                 new MapSqlParameterSource(), SingleColumnRowMapper.newInstance(LocalDate.class));
     }
 
-    Optional<LocalDate> getLatestLunchForPlace(int placeId) {
-        return jdbcTemplate.query("select lunch_time_id from lunch where place_id = :placeId",
-                new MapSqlParameterSource("placeId", placeId), SingleColumnRowMapper.newInstance(LocalDate.class))
+    Optional<LocalDate> getLatestLunchForPlace(int placeId, LocalDate before) {
+        return jdbcTemplate.query("select lunch_time_id from lunch where place_id = :placeId and lunch_time_id < :before",
+                new MapSqlParameterSource().addValue("placeId", placeId).addValue("before", before),
+                SingleColumnRowMapper.newInstance(LocalDate.class))
                 .stream().findFirst();
     }
 
@@ -70,7 +71,6 @@ class LunchDao {
                         .addValue("placeId", placeId)
                         .addValue("type", type.name().substring(0, 1)));
     }
-
 
 
     Collection<Vote> getLunchVotesByPersons(LocalDate lunchTime, VoteType voteType, Collection<Integer> personIds) {
