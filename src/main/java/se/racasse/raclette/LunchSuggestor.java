@@ -2,8 +2,6 @@ package se.racasse.raclette;
 
 import com.google.common.collect.ComparisonChain;
 
-import java.util.Optional;
-
 class LunchSuggestor {
 
     private final LunchContext lunchContext;
@@ -12,11 +10,12 @@ class LunchSuggestor {
         this.lunchContext = lunchContext;
     }
 
-    public Optional<PlaceScore> suggest() {
+    public SuggestResult suggest() {
         return lunchContext.places.stream()
                 .filter(place -> place.accepted(lunchContext.participants))
                 .map(this::scorePlace)
-                .sorted(this::compareScore).findFirst();
+                .sorted(this::compareScore)
+                .collect(SuggestResult.collector());
     }
 
     private int compareScore(PlaceScore p1, PlaceScore p2) {

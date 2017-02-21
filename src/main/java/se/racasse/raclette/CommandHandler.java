@@ -331,12 +331,12 @@ public class CommandHandler {
                 return;
             }
         } else {
-            final Optional<PlaceScore> placeScore = lunchService.getLatestSuggestedPlace();
-            if (!placeScore.isPresent()) {
+            final Optional<SuggestResult> suggestion = lunchService.getLatestSuggestion();
+            if (!suggestion.isPresent() || !suggestion.get().top().isPresent()) {
                 sendMessage(event.getChannel(), "No place is suggested");
                 return;
             }
-            place = Optional.of(placeScore.get().place);
+            place = Optional.of(suggestion.get().top().get().place);
         }
         lunchService.setLunchPlace(lunchTime, place.get().id);
         sendMessage(event.getChannel(), String.format("Today's lunch will be at *%s*", place.get().name));
@@ -404,11 +404,11 @@ public class CommandHandler {
         final Map<Integer, Person> participants = Maps.uniqueIndex(lunchService.getLunchTimeParticipants(currentLunchTime), p -> p.id);
         final Collection<Place> places = placeService.getAllPlaces();
         final Multimap<Integer, Vote> votesByPlace = lunchService.getLunchTimeVotesByPlace(currentLunchTime);
-        final Optional<PlaceScore> suggestedPlace = lunchService.suggestLunchPlace(currentLunchTime);
+        final SuggestResult suggestResult = lunchService.suggestLunchPlace(currentLunchTime);
 
         final ImmutableList.Builder<String> msg = ImmutableList.builder();
         msg.add(String.format("Lunch status for *%s*", currentLunchTime.format(DateTimeFormatter.ISO_DATE)));
-        suggestedPlace.ifPresent(score -> msg.add(String.format("SUGGESTED PLACE: *%s* (score %.2f)",
+        suggestResult.top().ifPresent(score -> msg.add(String.format("SUGGESTED PLACE: *%s* (score %.2f)",
                 score.place.name, score.score)));
         if (participants.size() > 0) {
             msg.add("*Participants*");
@@ -428,6 +428,13 @@ public class CommandHandler {
                     });
                 }
             });
+        }
+        if (suggestResult.scores.size() > 0) {
+            msg.add("*Scores*");
+            for (int i = 0; i < Math.min(suggestResult.scores.size(), 10); i++) {
+                final PlaceScore score = suggestResult.scores.get(i);
+                msg.add(String.format("%d. %s (%.2f)", i + 1, score.place.name, score.score));
+            }
         }
         sendMultilineMessage(event.getChannel(), msg.build());
     }
