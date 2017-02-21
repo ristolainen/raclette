@@ -331,11 +331,12 @@ public class CommandHandler {
                 return;
             }
         } else {
-            place = lunchService.getLatestSuggestedPlace();
-            if (!place.isPresent()) {
+            final Optional<PlaceScore> placeScore = lunchService.getLatestSuggestedPlace();
+            if (!placeScore.isPresent()) {
                 sendMessage(event.getChannel(), "No place is suggested");
                 return;
             }
+            place = Optional.of(placeScore.get().place);
         }
         lunchService.setLunchPlace(lunchTime, place.get().id);
         sendMessage(event.getChannel(), String.format("Today's lunch will be at *%s*", place.get().name));
@@ -403,24 +404,31 @@ public class CommandHandler {
         final Map<Integer, Person> participants = Maps.uniqueIndex(lunchService.getLunchTimeParticipants(currentLunchTime), p -> p.id);
         final Collection<Place> places = placeService.getAllPlaces();
         final Multimap<Integer, Vote> votesByPlace = lunchService.getLunchTimeVotesByPlace(currentLunchTime);
-        final Optional<Place> suggestedPlace = lunchService.suggestLunchPlace(currentLunchTime);
+        final Optional<PlaceScore> suggestedPlace = lunchService.suggestLunchPlace(currentLunchTime);
 
         final ImmutableList.Builder<String> msg = ImmutableList.builder();
         msg.add(String.format("Lunch status for *%s*", currentLunchTime.format(DateTimeFormatter.ISO_DATE)));
-        msg.add("Participants");
-        msg.addAll(participants.values().stream().map(person -> "• " + person.name).collect(toList()));
-        msg.add("Votes");
-        places.forEach(place -> {
-            final Collection<Vote> votes = votesByPlace.get(place.id);
-            if (votes.size() > 0) {
-                msg.add("• " + place.name);
-                votes.forEach(vote -> {
-                    final Person person = participants.get(vote.personId);
-                    msg.add("    • " + person.name + " " + voteTypeToEmoji(vote.type));
-                });
-            }
-        });
-        suggestedPlace.ifPresent(place -> msg.add(String.format("Suggested place: *%s*", suggestedPlace.get().name)));
+        suggestedPlace.ifPresent(score -> msg.add(String.format("SUGGESTED PLACE: *%s* (score %.2f)",
+                score.place.name, score.score)));
+        if (participants.size() > 0) {
+            msg.add("*Participants*");
+            msg.addAll(participants.values().stream().map(person -> "• " + person.name).collect(toList()));
+        } else {
+            msg.add("*No participants*");
+        }
+        if (votesByPlace.size() > 0) {
+            msg.add("*Votes*");
+            places.forEach(place -> {
+                final Collection<Vote> votes = votesByPlace.get(place.id);
+                if (votes.size() > 0) {
+                    msg.add("• " + place.name);
+                    votes.forEach(vote -> {
+                        final Person person = participants.get(vote.personId);
+                        msg.add("    • " + person.name + " " + voteTypeToEmoji(vote.type));
+                    });
+                }
+            });
+        }
         sendMultilineMessage(event.getChannel(), msg.build());
     }
 

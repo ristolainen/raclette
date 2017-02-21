@@ -21,7 +21,7 @@ class LunchService {
     private final PersonService personService;
     private final PlaceService placeService;
 
-    private Optional<Place> latestSuggestedPlace = Optional.empty();
+    private Optional<PlaceScore> latestSuggestedPlace = Optional.empty();
 
     @Autowired
     LunchService(LunchDao lunchDao, PersonService personService, PlaceService placeService) {
@@ -70,7 +70,7 @@ class LunchService {
         lunchDao.removeLunchVotes(date, person.id);
     }
 
-    Optional<Place> suggestLunchPlace(LocalDate date) {
+    Optional<PlaceScore> suggestLunchPlace(LocalDate date) {
         final LunchContext lunchContext = new LunchContext();
         lunchContext.places = placeService.getAllPlaces();
         lunchContext.participants = personService.getParticipatingPersons(date);
@@ -78,7 +78,7 @@ class LunchService {
         lunchContext.upVotes = getLunchVotesPerParticipant(date, VoteType.UP, lunchContext.participants);
         lunchContext.downVotes = getLunchVotesPerParticipant(date, VoteType.DOWN, lunchContext.participants);
         final LunchSuggestor lunchSuggestor = new LunchSuggestor(lunchContext);
-        final Optional<Place> place = lunchSuggestor.suggest();
+        final Optional<PlaceScore> place = lunchSuggestor.suggest();
         this.latestSuggestedPlace = place;
         return place;
     }
@@ -91,7 +91,7 @@ class LunchService {
         return Multimaps.index(lunchDao.getLunchVotesByPersons(date, voteType, participantIds), vote -> vote.placeId);
     }
 
-    Optional<Place> getLatestSuggestedPlace() {
+    Optional<PlaceScore> getLatestSuggestedPlace() {
         return latestSuggestedPlace;
     }
 

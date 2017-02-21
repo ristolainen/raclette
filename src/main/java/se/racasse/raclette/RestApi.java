@@ -57,8 +57,11 @@ class RestApi {
     @PutMapping("lunches/{date}")
     public int setLunch(@PathVariable String date) {
         final LocalDate lunchDate = LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE);
-        final Optional<Place> place = lunchService.suggestLunchPlace(lunchDate);
-        place.ifPresent(p -> lunchService.setLunchPlace(lunchDate, p.id));
-        return place.orElseGet(Place::new).id;
+        final Optional<PlaceScore> placeScore = lunchService.suggestLunchPlace(lunchDate);
+        placeScore.ifPresent(p -> lunchService.setLunchPlace(lunchDate, p.place.id));
+        if (placeScore.isPresent()) {
+            return placeScore.get().place.id;
+        }
+        return 0;
     }
 }

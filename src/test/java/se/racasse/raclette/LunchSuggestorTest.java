@@ -26,10 +26,10 @@ public class LunchSuggestorTest {
         lunchContext.participants = Collections.singleton(person);
         lunchContext.latestLunches = Collections.emptyMap();
         final LunchSuggestor lunchSuggestor = new LunchSuggestor(lunchContext);
-        final Optional<Place> suggestedPlace = lunchSuggestor.suggest();
+        final Optional<PlaceScore> suggestedPlace = lunchSuggestor.suggest();
 
         assertTrue(suggestedPlace.isPresent());
-        assertThat(suggestedPlace.get(), sameInstance(place));
+        assertThat(suggestedPlace.get().place, sameInstance(place));
     }
 
     @Test
@@ -44,10 +44,10 @@ public class LunchSuggestorTest {
         lunchContext.participants = Collections.singleton(person);
         lunchContext.latestLunches = Collections.emptyMap();
         final LunchSuggestor lunchSuggestor = new LunchSuggestor(lunchContext);
-        final Optional<Place> suggestedPlace = lunchSuggestor.suggest();
+        final Optional<PlaceScore> suggestedPlace = lunchSuggestor.suggest();
 
         assertTrue(suggestedPlace.isPresent());
-        assertThat(suggestedPlace.get(), sameInstance(place1));
+        assertThat(suggestedPlace.get().place, sameInstance(place1));
     }
 
     @Test
@@ -66,10 +66,10 @@ public class LunchSuggestorTest {
         lunchContext.participants = ImmutableSet.of(person1, person2);
         lunchContext.latestLunches = Collections.emptyMap();
         final LunchSuggestor lunchSuggestor = new LunchSuggestor(lunchContext);
-        final Optional<Place> suggestedPlace = lunchSuggestor.suggest();
+        final Optional<PlaceScore> suggestedPlace = lunchSuggestor.suggest();
 
         assertTrue(suggestedPlace.isPresent());
-        assertThat(suggestedPlace.get(), sameInstance(place2));
+        assertThat(suggestedPlace.get().place, sameInstance(place2));
     }
 
     @Test
@@ -84,10 +84,10 @@ public class LunchSuggestorTest {
         lunchContext.participants = ImmutableSet.of(person1);
         lunchContext.latestLunches = ImmutableMap.of(place1.id, LocalDate.now().minusDays(4), place2.id, LocalDate.now().minusDays(2));
         final LunchSuggestor lunchSuggestor = new LunchSuggestor(lunchContext);
-        final Optional<Place> suggestedPlace = lunchSuggestor.suggest();
+        final Optional<PlaceScore> suggestedPlace = lunchSuggestor.suggest();
 
         assertTrue(suggestedPlace.isPresent());
-        assertThat(suggestedPlace.get(), sameInstance(place1));
+        assertThat(suggestedPlace.get().place, sameInstance(place1));
     }
 
     private Place createPlace(String name, String... tags) {
