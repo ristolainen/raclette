@@ -80,4 +80,18 @@ class PersonDao {
                         .addValue("tagId", tag)
                         .addValue("type", type.toString().substring(0, 1)));
     }
+
+    Collection<Vote> getPlaceVotes(int personId) {
+        return jdbcTemplate.query("select * from place_vote where person_id = :personId",
+                new MapSqlParameterSource("personId", personId),
+                (resultSet, rowNum) -> {
+                    final Vote vote = new Vote();
+                    vote.placeId = resultSet.getInt("place_id");
+                    vote.personId = personId;
+                    vote.type = VoteType.fromInitial(resultSet.getString("type"));
+                    return vote;
+                });
+    }
+
+
 }

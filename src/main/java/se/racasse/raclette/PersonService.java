@@ -40,6 +40,10 @@ class PersonService {
         }).collect(toSet());
     }
 
+    Collection<Vote> getPlaceVotesForPerson(int personId) {
+        return dao.getPlaceVotes(personId);
+    }
+
     int addPerson(String name) {
         return dao.insertPerson(name);
     }

@@ -52,7 +52,7 @@ class PlaceDao {
                     final Vote vote = new Vote();
                     vote.placeId = resultSet.getInt("place_id");
                     vote.personId = resultSet.getInt("person_id");
-                    vote.type = voteTypeByFirstCharacter(resultSet.getString("type"));
+                    vote.type = VoteType.fromInitial(resultSet.getString("type"));
                     return vote;
                 });
     }
@@ -67,6 +67,11 @@ class PlaceDao {
     void insertPlaceTag(int placeId, String tag) {
         jdbcTemplate.update("insert into place_tag (place_id, tag_id) values (:placeId, :tagId)",
                 new MapSqlParameterSource().addValue("placeId", placeId).addValue("tagId", tag));
+    }
+
+    Place getPlace(int placeId) {
+        return jdbcTemplate.queryForObject("select * from place where id = :id",
+                new MapSqlParameterSource("id", placeId), PLACE_ROW_MAPPER);
     }
 
     Optional<Place> getPlaceByName(String name) {
@@ -85,16 +90,6 @@ class PlaceDao {
                         .addValue("placeId", placeId)
                         .addValue("personId", personId)
                         .addValue("type", type.name().substring(0, 1)));
-    }
-
-    private VoteType voteTypeByFirstCharacter(String firstCharacterOfType) {
-        switch (firstCharacterOfType) {
-            case "U":
-                return VoteType.UP;
-            case "D":
-                return VoteType.DOWN;
-        }
-        throw new IllegalStateException();
     }
 
 }

@@ -16,21 +16,25 @@ class PlaceService {
     }
 
     Collection<Place> getAllPlaces() {
-        return dao.getAllPlaces().stream().map(place -> {
-            place.tags = dao.getPlaceTags(place.id);
-            place.upVotes = dao.getPlaceUpVotes(place.id);
-            place.downVotes = dao.getPlaceDownVotes(place.id);
-            return place;
-        }).collect(Collectors.toSet());
+        return dao.getAllPlaces().stream()
+                .map(this::populatePlace)
+                .collect(Collectors.toSet());
+    }
+
+    Place getPlace(int placeId) {
+        return populatePlace(dao.getPlace(placeId));
     }
 
     Optional<Place> getPlaceByName(String name) {
-        return dao.getPlaceByName(name).flatMap(place -> {
-            place.tags = dao.getPlaceTags(place.id);
-            place.upVotes = dao.getPlaceUpVotes(place.id);
-            place.downVotes = dao.getPlaceDownVotes(place.id);
-            return Optional.of(place);
-        });
+        return dao.getPlaceByName(name)
+                .flatMap(place -> Optional.of(populatePlace(place)));
+    }
+
+    private Place populatePlace(Place place) {
+        place.tags = dao.getPlaceTags(place.id);
+        place.upVotes = dao.getPlaceUpVotes(place.id);
+        place.downVotes = dao.getPlaceDownVotes(place.id);
+        return place;
     }
 
     int addPlace(Place place) {

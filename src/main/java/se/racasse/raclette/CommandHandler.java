@@ -4,6 +4,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
 import com.ullink.slack.simpleslackapi.SlackChannel;
 import com.ullink.slack.simpleslackapi.SlackSession;
 import com.ullink.slack.simpleslackapi.events.SlackMessagePosted;
@@ -140,6 +141,9 @@ public class CommandHandler {
             case "places":
                 handleGetPlaces(event);
                 return;
+            case "person":
+                handleGetUser(event, params.get(1));
+                return;
         }
         sendMessage(event.getChannel(), "What?");
     }
@@ -189,14 +193,39 @@ public class CommandHandler {
         final Person p = person.get();
         final List<String> prefers = p.preferredTags.stream().map(t -> "• " + t.name).collect(toList());
         final List<String> requires = p.requiredTags.stream().map(t -> "• " + t.name).collect(toList());
+
+        final Collection<Vote> placeVotes = personService.getPlaceVotesForPerson(p.id);
+        final Multimap<Integer, Vote> placeVotesPerPlace = Multimaps.index(placeVotes, v -> v.placeId);
+
         final ImmutableList.Builder<String> msg = ImmutableList.builder();
         msg.add(String.format("*%s*", p.name));
         msg.add(">>>");
-        msg.add("Prefers");
-        msg.addAll(prefers);
+        if (prefers.size() > 0) {
+            msg.add("Prefers");
+            msg.addAll(prefers);
+        }
         msg.add("");
-        msg.add("Requires");
-        msg.addAll(requires);
+        if (requires.size() > 0) {
+            msg.add("Requires");
+            msg.addAll(requires);
+        }
+        if (placeVotes.size() > 0) {
+            msg.add("Votes");
+            placeVotesPerPlace.keySet().forEach(placeId -> {
+                final Place place = placeService.getPlace(placeId);
+                final Collection<Vote> votes = placeVotesPerPlace.get(placeId);
+                final long upvotes = votes.stream().filter(v -> v.type == VoteType.UP).count();
+                final long downvotes = votes.stream().filter(v -> v.type == VoteType.DOWN).count();
+                String s = "• " + place.name + ": ";
+                if (upvotes > 0) {
+                    s += String.format("%d :thumbsup: ", upvotes);
+                }
+                if (downvotes > 0) {
+                    s += String.format("%d :thumbsdown: ", downvotes);
+                }
+                msg.add(s);
+            });
+        }
         sendMultilineMessage(event.getChannel(), msg.build());
     }
 

@@ -1,5 +1,7 @@
 package se.racasse.raclette;
 
+import com.google.common.collect.ComparisonChain;
+
 import java.util.Optional;
 
 class LunchSuggestor {
@@ -17,7 +19,10 @@ class LunchSuggestor {
     }
 
     private int compareScore(Place p1, Place p2) {
-        return Float.compare(scorePlace(p2), scorePlace(p1));
+        return ComparisonChain.start()
+                .compare(scorePlace(p2), scorePlace(p1))
+                .compare(p1.name, p2.name)
+                .result();
     }
 
     private float scorePlace(Place place) {
