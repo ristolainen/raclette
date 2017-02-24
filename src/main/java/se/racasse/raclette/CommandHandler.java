@@ -40,7 +40,7 @@ public class CommandHandler {
 
     @PostConstruct
     public void init() {
-        lunchChannel = session.findChannelByName("random");
+        lunchChannel = session.findChannelByName("lunch");
     }
 
     @Scheduled(cron = "0 0 1 * * MON-FRI")
@@ -93,7 +93,6 @@ public class CommandHandler {
                 handleTestCommand(event, params);
                 return;
         }
-        sendMessage(event.getChannel(), "What?");
     }
 
     private void handleHelpCommand(SlackMessagePosted event, List<String> params) {
@@ -178,7 +177,7 @@ public class CommandHandler {
         }
         if (p.downVotes.size() > 0) {
             msg.add(voteTypeToEmoji(VoteType.DOWN) + " " + p.downVotes.stream()
-                    .map(v -> personService.getPerson(v.personId))
+                    .map(v -> personService.getPerson(v.personId).name)
                     .collect(toList()));
         }
         sendMultilineMessage(event.getChannel(), msg.build());

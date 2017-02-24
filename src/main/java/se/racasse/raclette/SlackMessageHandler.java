@@ -38,7 +38,7 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
     @PostConstruct
     public void init() {
         session.addMessagePostedListener(this);
-        lunchChannel = session.findChannelByName("random");
+        lunchChannel = session.findChannelByName("lunch");
     }
 
     @Override
@@ -73,7 +73,9 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
     }
 
     private boolean isMessageForMe(SlackMessagePosted message) {
-        return message.getChannel().isDirect() || message.getMessageContent().contains(me().getId());
+        return message.getChannel().isDirect()
+                || message.getChannel().getId().equals(lunchChannel.getId())
+                || message.getMessageContent().contains(me().getId());
     }
 
     private SlackPersona me() {

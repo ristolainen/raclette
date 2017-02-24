@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.time.Period;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class Place {
 
@@ -21,8 +23,8 @@ public class Place {
         return scoreTags(scoringContext.persons)
                 + scoreLunchUpVotes(scoringContext.lunchUpVotes)
                 + scoreLunchDownVotes(scoringContext.lunchDownVotes)
-                + scoreUpVotes()
-                + scoreDownVotes()
+                + scoreUpVotes(scoringContext.persons)
+                + scoreDownVotes(scoringContext.persons)
                 + timeSinceLastLunchBoost(scoringContext.latestLunch);
     }
 
@@ -38,12 +40,19 @@ public class Place {
         return -3 * votes.size();
     }
 
-    private float scoreUpVotes() {
-        return 1.5f * upVotes.size();
+    private float scoreUpVotes(Collection<Person> persons) {
+        final Collection<Vote> votes = filterVotesOnPersons(upVotes, persons);
+        return 1.5f * votes.size();
     }
 
-    private float scoreDownVotes() {
-        return -1.5f * downVotes.size();
+    private float scoreDownVotes(Collection<Person> persons) {
+        final Collection<Vote> votes = filterVotesOnPersons(downVotes, persons);
+        return -1.5f * votes.size();
+    }
+
+    private Collection<Vote> filterVotesOnPersons(Collection<Vote> votes, Collection<Person> persons) {
+        final Set<Integer> personIds = persons.stream().map(p -> p.id).collect(Collectors.toSet());
+        return votes.stream().filter(personIds::contains).collect(Collectors.toList());
     }
 
     private float timeSinceLastLunchBoost(LocalDate latestLunch) {
