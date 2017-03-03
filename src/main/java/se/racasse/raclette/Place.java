@@ -52,7 +52,7 @@ public class Place {
 
     private Collection<Vote> filterVotesOnPersons(Collection<Vote> votes, Collection<Person> persons) {
         final Set<Integer> personIds = persons.stream().map(p -> p.id).collect(Collectors.toSet());
-        return votes.stream().filter(personIds::contains).collect(Collectors.toList());
+        return votes.stream().filter(v -> personIds.contains(v.personId)).collect(Collectors.toList());
     }
 
     private float timeSinceLastLunchBoost(LocalDate latestLunch) {
@@ -60,7 +60,7 @@ public class Place {
         if (latestLunch != null) {
             daysBetween = Period.between(latestLunch, LocalDate.now()).getDays();
         }
-        return (float) (1 + 4 * Math.log(daysBetween));
+        return (float) (1 + 5 * Math.log(daysBetween));
     }
 
 }

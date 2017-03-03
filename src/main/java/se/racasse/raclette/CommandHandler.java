@@ -67,6 +67,7 @@ public class CommandHandler {
     }
 
     public void handleCommand(SlackMessagePosted event, String cmd, List<String> params) {
+        System.out.println(event.getSender().getUserName() + ": " + cmd + " " + params);
         switch (cmd) {
             case "help":
                 handleHelpCommand(event, params);
