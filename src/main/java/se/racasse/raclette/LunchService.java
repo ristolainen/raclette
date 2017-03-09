@@ -110,9 +110,7 @@ class LunchService {
         return lunches;
     }
 
-    void addLunchVote(String personName, LocalDate lunchTime, int placeId, VoteType type) {
-        final Person person = personService.getPersonByName(personName)
-                .orElseThrow(() -> new IllegalArgumentException(String.format("User '%s' not found", personName)));
-        lunchDao.insertLunchVote(person.id, lunchTime, placeId, type);
+    void addLunchVote(int personId, LocalDate lunchTime, int placeId, VoteType type) {
+        lunchDao.insertLunchVote(personId, lunchTime, placeId, type);
     }
 }

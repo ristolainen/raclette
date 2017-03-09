@@ -25,12 +25,12 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
     private final static Logger LOG = LoggerFactory.getLogger(SlackMessageHandler.class);
 
     private final SlackSession session;
-    private final CommandHandler commandHandler;
+    private final SlackCommandHandler commandHandler;
 
     private SlackChannel lunchChannel;
 
     @Autowired
-    public SlackMessageHandler(SlackSession session, CommandHandler commandHandler) {
+    public SlackMessageHandler(SlackSession session, SlackCommandHandler commandHandler) {
         this.session = session;
         this.commandHandler = commandHandler;
     }

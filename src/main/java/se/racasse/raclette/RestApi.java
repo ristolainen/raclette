@@ -38,7 +38,7 @@ class RestApi {
     }
 
     @PostMapping("persons")
-    public int addPerson(@RequestBody String name) {
+    public Person addPerson(@RequestBody String name) {
         return personService.addPerson(name);
     }
 

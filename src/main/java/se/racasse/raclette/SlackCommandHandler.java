@@ -7,62 +7,53 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.ullink.slack.simpleslackapi.SlackChannel;
 import com.ullink.slack.simpleslackapi.SlackSession;
+import com.ullink.slack.simpleslackapi.SlackUser;
 import com.ullink.slack.simpleslackapi.events.SlackMessagePosted;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
-import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static java.util.stream.Collectors.toList;
 
 @Component
-public class CommandHandler {
+public class SlackCommandHandler {
 
     private final SlackSession session;
-    private final PlaceService placeService;
-    private final PersonService personService;
-    private final LunchService lunchService;
+    private final Actions actions;
 
     private SlackChannel lunchChannel;
 
-    public CommandHandler(SlackSession session, PlaceService placeService, PersonService personService, LunchService lunchService) {
+    public SlackCommandHandler(SlackSession session, Actions actions) {
         this.session = session;
-        this.placeService = placeService;
-        this.personService = personService;
-        this.lunchService = lunchService;
+        this.actions = actions;
     }
 
     @PostConstruct
     public void init() {
         lunchChannel = session.findChannelByName("lunch");
-    }
 
-    @Scheduled(cron = "0 0 1 * * MON-FRI")
-    public void createLunchTimeForToday() {
-        final LocalDate date = LocalDate.now();
-        final LocalDate currentLunchTime = lunchService.getCurrentLunchTime();
-        if (date.equals(currentLunchTime)) {
-            sendLunchMessage("There is already a lunch time for today");
-            return;
-        }
-        lunchService.addLunchTime(date);
-        sendLunchMessage("Creating new lunch time for " + date.format(DateTimeFormatter.ISO_DATE));
-    }
-
-    @Scheduled(cron = "0 0 10 * * MON-FRI")
-    public void addParticipants() {
-        session.getUsers().forEach(u -> {
-            if (u.getPresence().name().equals("ACTIVE")) {
-                if (personService.getPersonByName(u.getUserName()).isPresent()) {
-                    addParticipant(lunchChannel, u.getUserName());
-                }
+        actions.setAutomaticParticipantProvider(new Actions.AutomaticParticipantProvider() {
+            @Override
+            public Collection<String> getParticipantsToBeAdded() {
+                return session.getUsers()
+                        .stream()
+                        .filter(u -> u.getPresence().name().equals("ACTIVE"))
+                        .map(SlackUser::getUserName)
+                        .collect(toList());
             }
+
+            @Override
+            public void participantAdded(Person participant) {
+                sendMessage(lunchChannel, String.format("%s is a member of today's lunch gang", participant.name));
+            }
+        });
+
+        actions.setCreatedLunchTimeCallback(response -> {
+            sendMessage(lunchChannel, "Creating new lunch time for " + response.lunchTime.format(DateTimeFormatter.ISO_DATE));
         });
     }
 
@@ -149,20 +140,24 @@ public class CommandHandler {
     }
 
     private void handleGetPlaces(SlackMessagePosted event) {
-        final Collection<Place> places = placeService.getAllPlaces();
-        sendMultilineMessage(event.getChannel(),
-                places.stream()
-                        .map(p -> String.format("• %s - [%s]", p.name, Joiner.on(',').join(p.tags)))
-                        .collect(toList()));
+        final GetAllPlacesResponse response = actions.getAllPlaces();
+        if (response.successful()) {
+            sendMultilineMessage(event.getChannel(),
+                    response.places.stream()
+                            .map(p -> String.format("• %s - [%s]", p.name, Joiner.on(',').join(p.tags)))
+                            .collect(toList()));
+        } else {
+            sendMessage(event.getChannel(), response.errorMessage);
+        }
     }
 
     private void handleGetPlace(SlackMessagePosted event, String name) {
-        final Optional<Place> place = placeService.getPlaceByName(name);
-        if (!place.isPresent()) {
-            sendMessage(event.getChannel(), String.format("I don't know any place called '%s'", name));
+        final GetPlaceResponse response = actions.getPlace(name);
+        if (!response.successful()) {
+            sendMessage(event.getChannel(), response.errorMessage);
             return;
         }
-        final Place p = place.get();
+        final Place p = response.place.get();
         final List<String> tags = p.tags.stream().map(t -> "• " + t.name).collect(toList());
 
         final ImmutableList.Builder<String> msg = ImmutableList.builder();
@@ -173,29 +168,28 @@ public class CommandHandler {
         msg.add("Votes");
         if (p.upVotes.size() > 0) {
             msg.add(voteTypeToEmoji(VoteType.UP) + " " + p.upVotes.stream()
-                    .map(v -> personService.getPerson(v.personId).name)
+                    .map(v -> v.personName)
                     .collect(toList()));
         }
         if (p.downVotes.size() > 0) {
             msg.add(voteTypeToEmoji(VoteType.DOWN) + " " + p.downVotes.stream()
-                    .map(v -> personService.getPerson(v.personId).name)
+                    .map(v -> v.personName)
                     .collect(toList()));
         }
         sendMultilineMessage(event.getChannel(), msg.build());
     }
 
     private void handleGetUser(SlackMessagePosted event, String name) {
-        final Optional<Person> person = personService.getPersonByName(name);
-        if (!person.isPresent()) {
-            sendMessage(event.getChannel(), String.format("I don't know a '%s'", name));
+        final GetPersonResponse response = actions.getPerson(name);
+        if (!response.successful()) {
+            sendMessage(event.getChannel(), response.errorMessage);
             return;
         }
-        final Person p = person.get();
+        final Person p = response.person.get();
         final List<String> prefers = p.preferredTags.stream().map(t -> "• " + t.name).collect(toList());
         final List<String> requires = p.requiredTags.stream().map(t -> "• " + t.name).collect(toList());
 
-        final Collection<Vote> placeVotes = personService.getPlaceVotesForPerson(p.id);
-        final Multimap<Integer, Vote> placeVotesPerPlace = Multimaps.index(placeVotes, v -> v.placeId);
+        final Multimap<String, Vote> placeVotesPerPlace = Multimaps.index(p.placeVotes, v -> v.placeName);
 
         final ImmutableList.Builder<String> msg = ImmutableList.builder();
         msg.add(String.format("*%s*", p.name));
@@ -209,14 +203,13 @@ public class CommandHandler {
             msg.add("Requires");
             msg.addAll(requires);
         }
-        if (placeVotes.size() > 0) {
+        if (p.placeVotes.size() > 0) {
             msg.add("Votes");
-            placeVotesPerPlace.keySet().forEach(placeId -> {
-                final Place place = placeService.getPlace(placeId);
-                final Collection<Vote> votes = placeVotesPerPlace.get(placeId);
+            placeVotesPerPlace.keySet().forEach(placeName -> {
+                final Collection<Vote> votes = placeVotesPerPlace.get(placeName);
                 final long upvotes = votes.stream().filter(v -> v.type == VoteType.UP).count();
                 final long downvotes = votes.stream().filter(v -> v.type == VoteType.DOWN).count();
-                String s = "• " + place.name + ": ";
+                String s = "• " + placeName + ": ";
                 if (upvotes > 0) {
                     s += String.format("%d :thumbsup: ", upvotes);
                 }
@@ -232,15 +225,13 @@ public class CommandHandler {
     private void handleVoteCommand(SlackMessagePosted event, List<String> params) {
         final String placeName = params.get(0);
         final VoteType type = VoteType.valueOf(params.get(1).toUpperCase());
-        final Optional<Place> place = placeService.getPlaceByName(placeName);
-        if (!place.isPresent()) {
-            sendMessage(event.getChannel(), String.format("I know no place called '%s'", params.get(1)));
-            return;
-        }
         final String me = event.getSender().getUserName();
-        final Person person = personService.getPersonByName(me).get();
-        placeService.addVote(person.id, place.get().id, type);
-        sendMessage(event.getChannel(), String.format("Added %s-vote for %s", type.name().toLowerCase(), place.get().name));
+        final AddVoteResponse response = actions.addVote(me, placeName, type);
+        if (response.successful()) {
+            sendMessage(event.getChannel(), String.format("Added %s-vote for %s", type.name().toLowerCase(), response.place.get().name));
+        } else {
+            sendMessage(event.getChannel(), response.errorMessage);
+        }
     }
 
     private void handleTagCommand(SlackMessagePosted event, List<String> params) {
@@ -276,70 +267,60 @@ public class CommandHandler {
     private void handlePlaceTag(SlackMessagePosted event, List<String> params) {
         final String name = params.get(1);
         final String tag = params.get(2);
-        final Optional<Place> place = placeService.getPlaceByName(name);
-        if (place.isPresent()) {
-            placeService.addPlaceTag(place.get().id, tag);
+        final PlaceTagResponse response = actions.addPlaceTag(name, tag);
+        if (response.successful()) {
             sendMessage(event.getChannel(), String.format("%s is now tagged with '%s'", name, tag));
         } else {
-            sendMessage(event.getChannel(), String.format("I know no place called '%s'", name));
+            sendMessage(event.getChannel(), response.errorMessage);
         }
     }
 
     private void handlePersonTag(SlackMessagePosted event, List<String> params, TagType type) {
         final String tag = params.get(1);
-        String name = event.getSender().getUserName();
-        final Optional<Person> me = personService.getPersonByName(name);
-        if (!me.isPresent()) {
-            sendMessage(event.getChannel(), "I don't know you");
-            return;
+        String me = event.getSender().getUserName();
+        final PersonTagResponse response = actions.addPersonTag(me, tag, type);
+        if (response.successful()) {
+            sendMessage(event.getChannel(), String.format("You now %s %s", type.name().toLowerCase(), tag));
+        } else {
+            sendMessage(event.getChannel(), response.errorMessage);
         }
-        personService.addTag(me.get().id, tag, type);
-        sendMessage(event.getChannel(), String.format("You now %s %s", type.name().toLowerCase(), tag));
     }
 
     private void handlePlaceUntag(SlackMessagePosted event, List<String> params) {
         final String name = params.get(1);
         final String tag = params.get(2);
-        final Optional<Place> place = placeService.getPlaceByName(name);
-        if (place.isPresent()) {
-            placeService.removePlaceTag(place.get().id, tag);
+        final PlaceTagResponse response = actions.removePlaceTag(name, tag);
+        if (response.successful()) {
             sendMessage(event.getChannel(), String.format("Tag '%s' was removed from %s", tag, name));
         } else {
-            sendMessage(event.getChannel(), String.format("I know no place called '%s'", name));
+            sendMessage(event.getChannel(), response.errorMessage);
         }
     }
 
     private void handlePersonUntag(SlackMessagePosted event, List<String> params, TagType type) {
         final String tag = params.get(1);
-        String name = event.getSender().getUserName();
-        final Optional<Person> me = personService.getPersonByName(name);
-        if (!me.isPresent()) {
-            sendMessage(event.getChannel(), "I don't know you");
-            return;
+        String me = event.getSender().getUserName();
+        final PersonTagResponse response = actions.removePersonTag(me, tag, type);
+        if (response.successful()) {
+            sendMessage(event.getChannel(), String.format("You no longer %s %s", type.name().toLowerCase(), tag));
+        } else {
+            sendMessage(event.getChannel(), response.errorMessage);
         }
-        personService.removeTag(me.get().id, tag, type);
-        sendMessage(event.getChannel(), String.format("You no longer %s %s", type.name().toLowerCase(), tag));
     }
 
     private void handleDecideCommand(SlackMessagePosted event, List<String> params) {
-        final LocalDate lunchTime = lunchService.getCurrentLunchTime();
-        Optional<Place> place;
+        final LunchPlaceDecisionResponse response;
         if (params.size() > 1) {
-            place = placeService.getPlaceByName(params.get(1));
-            if (!place.isPresent()) {
-                sendMessage(event.getChannel(), String.format("I know no place called '%s'", params.get(1)));
-                return;
-            }
+            final String name = params.get(1);
+            response = actions.decideSpecificLunchPlace(name);
         } else {
-            final Optional<SuggestResult> suggestion = lunchService.getLatestSuggestion();
-            if (!suggestion.isPresent() || !suggestion.get().top().isPresent()) {
-                sendMessage(event.getChannel(), "No place is suggested");
-                return;
-            }
-            place = Optional.of(suggestion.get().top().get().place);
+            response = actions.decideSuggestedLunchPlace();
         }
-        lunchService.setLunchPlace(lunchTime, place.get().id);
-        sendMessage(event.getChannel(), String.format("Today's lunch will be at *%s*", place.get().name));
+        if (response.successful()) {
+            sendMessage(event.getChannel(), String.format("Today's lunch will be at *%s*", response.decidedPlace.get().name));
+        } else {
+            sendMessage(event.getChannel(), response.errorMessage);
+        }
     }
 
     private void handleLunchCommand(SlackMessagePosted event, List<String> params) {
@@ -364,29 +345,41 @@ public class CommandHandler {
     }
 
     private void handleLunchVote(SlackMessagePosted event, List<String> params) {
-        final LocalDate lunchTime = lunchService.getCurrentLunchTime();
+        final String me = event.getSender().getUserName();
         final String placeName = params.get(1);
         final VoteType type = VoteType.valueOf(params.get(2).toUpperCase());
-        final Optional<Place> place = placeService.getPlaceByName(placeName);
-        if (!place.isPresent()) {
-            sendMessage(event.getChannel(), String.format("I know no place called '%s'", params.get(1)));
-            return;
+        final AddVoteResponse response = actions.addLunchVote(me, placeName, type);
+        if (response.successful()) {
+            sendMessage(event.getChannel(), String.format("Added lunch %s-vote for %s", type.name().toLowerCase(), placeName));
+        } else {
+            sendMessage(event.getChannel(), response.errorMessage);
         }
-        final String me = event.getSender().getUserName();
-        if (!lunchService.isLunchTimeParticipant(lunchTime, me)) {
-            sendMessage(event.getChannel(), "You must be a lunch participant to do lunch voting");
-            return;
-        }
-        lunchService.addLunchVote(me, lunchTime, place.get().id, type);
-        sendMessage(event.getChannel(), String.format("Added lunch %s-vote for %s", type.name().toLowerCase(), place.get().name));
     }
 
     private void handleLunchAdd(SlackMessagePosted event, List<String> params) {
+        final String name;
         if (params.get(1).equals("me")) {
             addParticipant(event.getChannel(), event.getSender().getUserName());
         } else {
-            final String name = params.get(1);
-            addParticipant(event.getChannel(), name);
+            addParticipant(event.getChannel(), params.get(1));
+        }
+    }
+
+    private void addParticipant(SlackChannel channel, String name) {
+        final AddLunchParticipantResponse response = actions.addLunchParticipant(name);
+        if (response.successful()) {
+            sendMessage(channel, String.format("%s is a member of today's lunch gang", name));
+        } else {
+            sendMessage(channel, response.errorMessage);
+        }
+    }
+
+    private void removeParticipant(SlackChannel channel, String userName) {
+        final RemoveLunchParticipantResponse response = actions.removeLunchParticipant(userName);
+        if (response.successful()) {
+            sendMessage(channel, String.format("%s is not a member of today's lunch gang", userName));
+        } else {
+            sendMessage(channel, response.errorMessage);
         }
     }
 
@@ -400,15 +393,13 @@ public class CommandHandler {
     }
 
     private void handleLunchStatus(SlackMessagePosted event) {
-        final LocalDate currentLunchTime = lunchService.getCurrentLunchTime();
-        final Map<Integer, Person> participants = Maps.uniqueIndex(lunchService.getLunchTimeParticipants(currentLunchTime), p -> p.id);
-        final Collection<Place> places = placeService.getAllPlaces();
-        final Multimap<Integer, Vote> votesByPlace = lunchService.getLunchTimeVotesByPlace(currentLunchTime);
-        final SuggestResult suggestResult = lunchService.suggestLunchPlace(currentLunchTime);
+        final GetLunchStatusResponse response = actions.getLunchStatus();
+        final Map<Integer, Person> participants = Maps.uniqueIndex(response.participants, p -> p.id);
 
         final ImmutableList.Builder<String> msg = ImmutableList.builder();
-        msg.add(String.format("Lunch status for *%s*", currentLunchTime.format(DateTimeFormatter.ISO_DATE)));
-        suggestResult.top().ifPresent(score -> msg.add(String.format("SUGGESTED PLACE: *%s* (score %.2f)",
+        msg.add(String.format("Lunch status for *%s*", response.lunchTime.format(DateTimeFormatter.ISO_DATE)));
+        final SuggestResult suggestion = response.suggestResult;
+        suggestion.top().ifPresent(score -> msg.add(String.format("SUGGESTED PLACE: *%s* (score %.2f)",
                 score.place.name, score.score)));
         if (participants.size() > 0) {
             msg.add("*Participants*");
@@ -416,10 +407,10 @@ public class CommandHandler {
         } else {
             msg.add("*No participants*");
         }
-        if (votesByPlace.size() > 0) {
+        if (response.votesByPlace.size() > 0) {
             msg.add("*Votes*");
-            places.forEach(place -> {
-                final Collection<Vote> votes = votesByPlace.get(place.id);
+            response.places.forEach(place -> {
+                final Collection<Vote> votes = response.votesByPlace.get(place.id);
                 if (votes.size() > 0) {
                     msg.add("• " + place.name);
                     votes.forEach(vote -> {
@@ -429,10 +420,10 @@ public class CommandHandler {
                 }
             });
         }
-        if (suggestResult.scores.size() > 0) {
+        if (suggestion.scores.size() > 0) {
             msg.add("*Scores*");
-            for (int i = 0; i < Math.min(suggestResult.scores.size(), 10); i++) {
-                final PlaceScore score = suggestResult.scores.get(i);
+            for (int i = 0; i < Math.min(suggestion.scores.size(), 10); i++) {
+                final PlaceScore score = suggestion.scores.get(i);
                 msg.add(String.format("%d. %s (%.2f)", i + 1, score.place.name, score.score));
             }
         }
@@ -452,19 +443,10 @@ public class CommandHandler {
     private void handleAddCommand(SlackMessagePosted event, List<String> params) {
         switch (params.get(0).toLowerCase()) {
             case "place":
-                final Place place = new Place();
-                place.name = params.get(1);
-                placeService.addPlace(place);
-                sendMessage(event.getChannel(), String.format("Place '%s' is now created", place.name));
+                handleAddPlace(event, params);
                 return;
             case "me":
-                String name = event.getSender().getUserName();
-                if (personService.getPersonByName(name).isPresent()) {
-                    sendMessage(event.getChannel(), "You are already added");
-                    return;
-                }
-                personService.addPerson(name);
-                sendMessage(event.getChannel(), "Welcome!");
+                handleAddMe(event);
                 return;
             case "lunchtime":
                 createLunchTimeForToday();
@@ -476,6 +458,25 @@ public class CommandHandler {
         sendMessage(event.getChannel(), "What?");
     }
 
+    private void handleAddMe(SlackMessagePosted event) {
+        String name = event.getSender().getUserName();
+        final AddPersonResponse response = actions.addPerson(name);
+        if (response.successful()) {
+            sendMessage(event.getChannel(), String.format("Welcome %s!", response.person.name));
+        } else {
+            sendMessage(event.getChannel(), response.errorMessage);
+        }
+    }
+
+    private void handleAddPlace(SlackMessagePosted event, List<String> params) {
+        final AddPlaceResponse response = actions.addPlace(params.get(1));
+        if (response.successful()) {
+            sendMessage(event.getChannel(), String.format("Place '%s' is now created", response.place.name));
+        } else {
+            sendMessage(event.getChannel(), response.errorMessage);
+        }
+    }
+
     private void handleTestCommand(SlackMessagePosted event, List<String> params) {
         session.getUsers().forEach(u -> {
             String s = u.getUserName() + ": " + u.getPresence().name();
@@ -483,16 +484,21 @@ public class CommandHandler {
         });
     }
 
-    private void addParticipant(SlackChannel channel, String userName) {
-        final LocalDate lunchTime = lunchService.getCurrentLunchTime();
-        lunchService.addLunchTimeParticipant(lunchTime, userName);
-        sendMessage(channel, String.format("%s is a member of today's lunch gang", userName));
+    private void addParticipants() {
+        session.getUsers().forEach(u -> {
+            if (u.getPresence().name().equals("ACTIVE")) {
+                addParticipant(lunchChannel, u.getUserName());
+            }
+        });
     }
 
-    private void removeParticipant(SlackChannel channel, String userName) {
-        final LocalDate lunchTime = lunchService.getCurrentLunchTime();
-        lunchService.removeLunchTimeParticipant(lunchTime, userName);
-        sendMessage(channel, String.format("%s is not a member of today's lunch gang", userName));
+    private void createLunchTimeForToday() {
+        final CreateLunchTimeResponse response = actions.createLunchTimeForToday();
+        if (response.successful()) {
+            sendMessage(lunchChannel, "Creating new lunch time for " + response.lunchTime.format(DateTimeFormatter.ISO_DATE));
+        } else {
+            sendMessage(lunchChannel, response.errorMessage);
+        }
     }
 
     private void sendLunchMessage(String msg) {

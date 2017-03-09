@@ -44,14 +44,19 @@ class PlaceDao {
     }
 
     private Collection<Vote> getPlaceVotes(int placeId, VoteType type) {
-        return jdbcTemplate.query("select * from place_vote where place_id = :placeId and type = :type",
+        return jdbcTemplate.query("select v.*, pe.name as person_name, pl.name as place_name from place_vote v " +
+                        "left join person pe on pe.id = v.person_id " +
+                        "left join place pl on pl.id = v.place_id " +
+                        "where v.place_id = :placeId and v.type = :type",
                 new MapSqlParameterSource()
                         .addValue("placeId", placeId)
                         .addValue("type", type.name().substring(0, 1)),
                 (resultSet, rowNum) -> {
                     final Vote vote = new Vote();
                     vote.placeId = resultSet.getInt("place_id");
+                    vote.placeName = resultSet.getString("place_name");
                     vote.personId = resultSet.getInt("person_id");
+                    vote.personName = resultSet.getString("person_name");
                     vote.type = VoteType.fromInitial(resultSet.getString("type"));
                     return vote;
                 });

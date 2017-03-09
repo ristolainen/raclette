@@ -21,6 +21,7 @@ class PersonService {
         final Person person = dao.getPerson(personId);
         person.preferredTags = dao.getPreferredTags(person.id);
         person.requiredTags = dao.getRequiredTags(person.id);
+        person.placeVotes = dao.getPlaceVotes(personId);
         return person;
     }
 
@@ -28,6 +29,7 @@ class PersonService {
         return dao.getPersonByName(name).flatMap(person -> {
             person.preferredTags = dao.getPreferredTags(person.id);
             person.requiredTags = dao.getRequiredTags(person.id);
+            person.placeVotes = dao.getPlaceVotes(person.id);
             return Optional.of(person);
         });
     }
@@ -36,16 +38,14 @@ class PersonService {
         return dao.getParticipatingPersons(date).stream().map(person -> {
             person.preferredTags = dao.getPreferredTags(person.id);
             person.requiredTags = dao.getRequiredTags(person.id);
+            person.placeVotes = dao.getPlaceVotes(person.id);
             return person;
         }).collect(toSet());
     }
 
-    Collection<Vote> getPlaceVotesForPerson(int personId) {
-        return dao.getPlaceVotes(personId);
-    }
-
-    int addPerson(String name) {
-        return dao.insertPerson(name);
+    Person addPerson(String name) {
+        final int personId = dao.insertPerson(name);
+        return getPerson(personId);
     }
 
     void addTag(int personId, String tag, TagType type) {

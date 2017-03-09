@@ -82,12 +82,17 @@ class PersonDao {
     }
 
     Collection<Vote> getPlaceVotes(int personId) {
-        return jdbcTemplate.query("select * from place_vote where person_id = :personId",
+        return jdbcTemplate.query("select v.*, pe.name as person_name, pl.name as place_name from place_vote v " +
+                        "left join person pe on pe.id = v.person_id " +
+                        "left join place pl on pl.id = v.place_id " +
+                        "where v.person_id = :personId",
                 new MapSqlParameterSource("personId", personId),
                 (resultSet, rowNum) -> {
                     final Vote vote = new Vote();
-                    vote.placeId = resultSet.getInt("place_id");
                     vote.personId = personId;
+                    vote.personName = resultSet.getString("person_name");
+                    vote.placeId = resultSet.getInt("place_id");
+                    vote.placeName = resultSet.getString("place_name");
                     vote.type = VoteType.fromInitial(resultSet.getString("type"));
                     return vote;
                 });

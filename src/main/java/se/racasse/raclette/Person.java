@@ -13,6 +13,7 @@ public class Person {
     String name;
     Collection<Tag> requiredTags = new HashSet<>();
     Collection<Tag> preferredTags = new HashSet<>();
+    Collection<Vote> placeVotes = new HashSet<>();
 
     boolean accepts(Collection<Tag> placeTags) {
         return requiredTags.stream().allMatch(placeTags::contains);

@@ -74,8 +74,11 @@ class LunchDao {
 
 
     Collection<Vote> getLunchVotesByPersons(LocalDate lunchTime, VoteType voteType, Collection<Integer> personIds) {
-        return jdbcTemplate.query("select * from lunch_vote where lunch_time_id = :lunchTimeId " +
-                        "and type = :type and person_id in (:personIds)",
+        return jdbcTemplate.query("select v.*, pe.name as person_name, pl.name as place_name from lunch_vote v " +
+                        "left join person pe on pe.id = v.person_id " +
+                        "left join place pl on pl.id = v.place_id " +
+                        "where v.lunch_time_id = :lunchTimeId " +
+                        "and v.type = :type and v.person_id in (:personIds)",
                 new MapSqlParameterSource()
                         .addValue("lunchTimeId", lunchTime)
                         .addValue("personIds", personIds)
@@ -83,22 +86,29 @@ class LunchDao {
                 (resultSet, rowNum) -> {
                     final Vote vote = new Vote();
                     vote.personId = resultSet.getInt("person_id");
+                    vote.personName = resultSet.getString("person_name");
                     vote.placeId = resultSet.getInt("place_id");
+                    vote.placeName = resultSet.getString("place_name");
                     vote.type = voteType;
                     return vote;
                 });
     }
 
     Collection<Vote> getLunchVotesByPlaces(LocalDate lunchTime, Collection<Integer> placeIds) {
-        return jdbcTemplate.query("select * from lunch_vote where lunch_time_id = :lunchTimeId " +
-                        "and place_id in (:placeIds)",
+        return jdbcTemplate.query("select v.*, pe.name as person_name, pl.name as place_name from lunch_vote v " +
+                        "left join person pe on pe.id = v.person_id " +
+                        "left join place pl on pl.id = v.place_id " +
+                        "where v.lunch_time_id = :lunchTimeId " +
+                        "and v.place_id in (:placeIds)",
                 new MapSqlParameterSource()
                         .addValue("lunchTimeId", lunchTime)
                         .addValue("placeIds", placeIds),
                 (resultSet, rowNum) -> {
                     final Vote vote = new Vote();
                     vote.personId = resultSet.getInt("person_id");
+                    vote.personName = resultSet.getString("person_name");
                     vote.placeId = resultSet.getInt("place_id");
+                    vote.placeName = resultSet.getString("place_name");
                     vote.type = voteTypeByFirstCharacter(resultSet.getString("type"));
                     return vote;
                 });
