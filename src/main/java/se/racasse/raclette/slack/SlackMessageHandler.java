@@ -9,10 +9,13 @@ import com.ullink.slack.simpleslackapi.SlackChannel;
 import com.ullink.slack.simpleslackapi.SlackPersona;
 import com.ullink.slack.simpleslackapi.SlackSession;
 import com.ullink.slack.simpleslackapi.events.SlackMessagePosted;
+import com.ullink.slack.simpleslackapi.impl.SlackSessionFactory;
 import com.ullink.slack.simpleslackapi.listeners.SlackMessagePostedListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -95,4 +98,15 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
     private void sendMultilineMessage(SlackChannel channel, Iterable<String> msg) {
         session.sendMessage(channel, Joiner.on('\n').join(msg));
     }
+
+    @Configuration
+    @Profile("slack")
+    static class Config {
+
+        @Bean(initMethod = "connect", destroyMethod = "disconnect")
+        public SlackSession slackSession() {
+            return SlackSessionFactory.createWebSocketSlackSession("xoxb-139115468736-ttSK40EAITeLCjiVA8uDu14G");
+        }
+    }
+
 }
