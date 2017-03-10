@@ -1,5 +1,22 @@
 package se.racasse.raclette;
 
+import se.racasse.raclette.lunch.AddLunchParticipantResponse;
+import se.racasse.raclette.lunch.CreateLunchTimeResponse;
+import se.racasse.raclette.lunch.GetLunchStatusResponse;
+import se.racasse.raclette.lunch.LunchPlaceDecisionResponse;
+import se.racasse.raclette.lunch.RemoveLunchParticipantResponse;
+import se.racasse.raclette.person.AddPersonResponse;
+import se.racasse.raclette.person.GetPersonResponse;
+import se.racasse.raclette.person.Person;
+import se.racasse.raclette.person.PersonTagResponse;
+import se.racasse.raclette.place.AddPlaceResponse;
+import se.racasse.raclette.place.GetAllPlacesResponse;
+import se.racasse.raclette.place.GetPlaceResponse;
+import se.racasse.raclette.place.PlaceTagResponse;
+import se.racasse.raclette.tag.TagType;
+import se.racasse.raclette.vote.AddVoteResponse;
+import se.racasse.raclette.vote.VoteType;
+
 import java.util.Collection;
 import java.util.function.Consumer;
 
