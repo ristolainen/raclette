@@ -9,6 +9,7 @@ import com.ullink.slack.simpleslackapi.SlackChannel;
 import com.ullink.slack.simpleslackapi.SlackSession;
 import com.ullink.slack.simpleslackapi.SlackUser;
 import com.ullink.slack.simpleslackapi.events.SlackMessagePosted;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import se.racasse.raclette.Actions;
 import se.racasse.raclette.lunch.SuggestResult;
@@ -41,6 +42,7 @@ import java.util.Map;
 import static java.util.stream.Collectors.toList;
 
 @Component
+@Profile("slack")
 public class SlackCommandHandler {
 
     private final SlackSession session;

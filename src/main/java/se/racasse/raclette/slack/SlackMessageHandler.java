@@ -13,6 +13,7 @@ import com.ullink.slack.simpleslackapi.listeners.SlackMessagePostedListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -20,6 +21,7 @@ import javax.annotation.PostConstruct;
 import java.util.List;
 
 @Component
+@Profile("slack")
 public class SlackMessageHandler implements SlackMessagePostedListener {
 
     private final static Logger LOG = LoggerFactory.getLogger(SlackMessageHandler.class);
