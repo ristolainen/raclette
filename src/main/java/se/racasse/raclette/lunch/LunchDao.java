@@ -52,7 +52,7 @@ class LunchDao {
     }
 
     Optional<LocalDate> getLatestLunchForPlace(int placeId, LocalDate before) {
-        return jdbcTemplate.query("select lunch_time_id from lunch where place_id = :placeId and lunch_time_id < :before",
+        return jdbcTemplate.query("select lunch_time_id from lunch where place_id = :placeId and lunch_time_id < :before order by lunch_time_id desc",
                 new MapSqlParameterSource().addValue("placeId", placeId).addValue("before", before),
                 SingleColumnRowMapper.newInstance(LocalDate.class))
                 .stream().findFirst();

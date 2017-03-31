@@ -1,7 +1,7 @@
 server.port: 7997
 
 spring.datasource:
-  url: jdbc:mysql://localhost/raclette
+  url: jdbc:mysql://localhost/raclette?serverTimezone=Europe/Stockholm
   username: root
   password:
   driver-class-name: com.mysql.jdbc.Driver
