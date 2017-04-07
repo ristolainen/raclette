@@ -13,50 +13,48 @@ import static java.util.stream.Collectors.toSet;
 @Component
 public class PersonService {
 
-    private final PersonDao dao;
+    private final PersonDao personDao;
 
-    PersonService(PersonDao dao) {
-        this.dao = dao;
+    PersonService(PersonDao personDao) {
+        this.personDao = personDao;
     }
 
     public Person getPerson(int personId) {
-        final Person person = dao.getPerson(personId);
-        person.preferredTags = dao.getPreferredTags(person.id);
-        person.requiredTags = dao.getRequiredTags(person.id);
-        person.placeVotes = dao.getPlaceVotes(personId);
-        return person;
+        final Person person = personDao.getPerson(personId);
+        return fetchPersonInfo(person);
     }
 
     public Optional<Person> getPersonByName(String name) {
-        return dao.getPersonByName(name).flatMap(person -> {
-            person.preferredTags = dao.getPreferredTags(person.id);
-            person.requiredTags = dao.getRequiredTags(person.id);
-            person.placeVotes = dao.getPlaceVotes(person.id);
-            return Optional.of(person);
-        });
+        return personDao.getPersonByName(name).flatMap(person ->
+                Optional.of(fetchPersonInfo(person)));
     }
 
     public Collection<Person> getParticipatingPersons(LocalDate date) {
-        return dao.getParticipatingPersons(date).stream().map(person -> {
-            person.preferredTags = dao.getPreferredTags(person.id);
-            person.requiredTags = dao.getRequiredTags(person.id);
-            person.placeVotes = dao.getPlaceVotes(person.id);
-            return person;
-        }).collect(toSet());
+        return personDao.getParticipatingPersons(date).stream()
+                .map(person -> fetchPersonInfo(person))
+                .collect(toSet());
+    }
+
+    private Person fetchPersonInfo(Person person) {
+        person.preferredTags = personDao.getPreferredTags(person.id);
+        person.requiredTags = personDao.getRequiredTags(person.id);
+        person.placeVotes = personDao.getPlaceVotes(person.id);
+        person.latestVisits = personDao.getLatestLunchVisits(person.id);
+        return person;
     }
 
     public Person addPerson(String name) {
-        final int personId = dao.insertPerson(name);
+        final int personId = personDao.insertPerson(name);
         return getPerson(personId);
     }
 
     public void addTag(int personId, String tag, TagType type) {
-        if (!dao.getTags(personId, type).contains(new Tag(tag))) {
-            dao.insertTag(personId, tag, type);
+        if (!personDao.getTags(personId, type).contains(new Tag(tag))) {
+            personDao.insertTag(personId, tag, type);
         }
     }
 
     public void removeTag(int personId, String tag, TagType type) {
-        dao.deleteTag(personId, tag, type);
+        personDao.deleteTag(personId, tag, type);
     }
 }

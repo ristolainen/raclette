@@ -52,4 +52,8 @@ public class PlaceService {
     public void addVote(int personId, int placeId, VoteType type) {
         dao.insertVote(personId, placeId, type);
     }
+
+    public void removeVote(int personId, int placeId, VoteType type) {
+        dao.deleteVote(personId, placeId, type);
+    }
 }

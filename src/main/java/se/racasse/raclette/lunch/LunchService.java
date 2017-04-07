@@ -7,15 +7,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import se.racasse.raclette.person.Person;
 import se.racasse.raclette.person.PersonService;
-import se.racasse.raclette.place.Place;
 import se.racasse.raclette.place.PlaceService;
 import se.racasse.raclette.vote.Vote;
 import se.racasse.raclette.vote.VoteType;
 
 import java.time.LocalDate;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 import static java.util.stream.Collectors.toList;
@@ -80,7 +77,6 @@ public class LunchService {
         final LunchContext lunchContext = new LunchContext();
         lunchContext.places = placeService.getAllPlaces();
         lunchContext.participants = personService.getParticipatingPersons(date);
-        lunchContext.latestLunches = getLatestLunches(lunchContext.places, date);
         lunchContext.upVotes = getLunchVotesPerParticipant(date, VoteType.UP, lunchContext.participants);
         lunchContext.downVotes = getLunchVotesPerParticipant(date, VoteType.DOWN, lunchContext.participants);
         final LunchSuggestor lunchSuggestor = new LunchSuggestor(lunchContext);
@@ -105,15 +101,13 @@ public class LunchService {
         lunchDao.setLunch(date, placeId);
     }
 
-    private Map<Integer, LocalDate> getLatestLunches(Collection<Place> places, LocalDate before) {
-        final Map<Integer, LocalDate> lunches = new HashMap<>();
-        places.forEach(place -> {
-            final Optional<LocalDate> latestLunch = lunchDao.getLatestLunchForPlace(place.id, before);
-            latestLunch.ifPresent(date -> {
-                lunches.put(place.id, date);
-            });
-        });
-        return lunches;
+    public boolean lunchVoteExists(int personId, LocalDate lunchTime, int placeId, VoteType type) {
+        Optional<Vote> vote = lunchDao.getLunchVoteForPerson(personId, lunchTime, placeId);
+        return vote.isPresent() && vote.get().type == type;
+    }
+
+    public void removeLunchVote(int personId, LocalDate lunchTime, int placeId) {
+        lunchDao.removeLunchVotes(personId, lunchTime, placeId);
     }
 
     public void addLunchVote(int personId, LocalDate lunchTime, int placeId, VoteType type) {

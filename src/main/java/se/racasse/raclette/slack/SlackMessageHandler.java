@@ -8,9 +8,8 @@ import com.google.common.collect.Iterables;
 import com.ullink.slack.simpleslackapi.SlackChannel;
 import com.ullink.slack.simpleslackapi.SlackPersona;
 import com.ullink.slack.simpleslackapi.SlackSession;
-import com.ullink.slack.simpleslackapi.events.SlackMessagePosted;
+import com.ullink.slack.simpleslackapi.SlackUser;
 import com.ullink.slack.simpleslackapi.impl.SlackSessionFactory;
-import com.ullink.slack.simpleslackapi.listeners.SlackMessagePostedListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +25,7 @@ import java.util.List;
 
 @Component
 @Profile("slack")
-public class SlackMessageHandler implements SlackMessagePostedListener {
+public class SlackMessageHandler {
 
     private final static Logger LOG = LoggerFactory.getLogger(SlackMessageHandler.class);
 
@@ -43,26 +42,29 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
 
     @PostConstruct
     public void init() {
-        session.addMessagePostedListener(this);
+        session.addMessagePostedListener((event, session) ->
+                handleMessage(event.getSender(), event.getChannel(), event.getMessageContent()));
+        session.addMessageUpdatedListener((event, session) -> {
+                    throw new UnsupportedOperationException("Updated messages not supported");
+                });
         lunchChannel = session.findChannelByName("lunch");
     }
 
-    @Override
-    public void onEvent(SlackMessagePosted event, SlackSession session) {
-        if (isMessageFromMe(event)) {
+    private void handleMessage(SlackUser sender, SlackChannel channel, String messageContent) {
+        if (isMessageFromMe(sender)) {
             return;
         }
-        if (isMessageForMe(event)) {
+        if (isMessageForMe(channel, messageContent)) {
             try {
-                final List<String> command = getCommand(event.getMessageContent());
+                final List<String> command = getCommand(messageContent);
                 if (command.size() > 0) {
                     final String cmd = command.get(0).toLowerCase();
                     final ImmutableList<String> params = ImmutableList.copyOf(Iterables.skip(command, 1));
-                    commandHandler.handleCommand(event, cmd, params);
+                    commandHandler.handleCommand(sender, channel, cmd, params);
                 }
             } catch (Exception e) {
                 LOG.error("Failed to handle slack event for ", e);
-                sendMessage(event.getChannel(), e.getMessage());
+                sendMessage(channel, e.getMessage());
             }
         }
     }
@@ -74,14 +76,14 @@ public class SlackMessageHandler implements SlackMessagePostedListener {
         return Splitter.on(CharMatcher.whitespace()).trimResults().omitEmptyStrings().splitToList(stripped);
     }
 
-    private boolean isMessageFromMe(SlackMessagePosted message) {
-        return message.getSender().getId().equals(me().getId());
+    private boolean isMessageFromMe(SlackUser sender) {
+        return sender.getId().equals(me().getId());
     }
 
-    private boolean isMessageForMe(SlackMessagePosted message) {
-        return message.getChannel().isDirect()
-                || message.getChannel().getId().equals(lunchChannel.getId())
-                || message.getMessageContent().contains(me().getId());
+    private boolean isMessageForMe(SlackChannel channel, String messageContent) {
+        return channel.isDirect()
+                || channel.getId().equals(lunchChannel.getId())
+                || messageContent.contains(me().getId());
     }
 
     private SlackPersona me() {

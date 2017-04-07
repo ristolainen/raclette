@@ -8,17 +8,17 @@ import com.google.common.collect.Multimaps;
 import com.ullink.slack.simpleslackapi.SlackChannel;
 import com.ullink.slack.simpleslackapi.SlackSession;
 import com.ullink.slack.simpleslackapi.SlackUser;
-import com.ullink.slack.simpleslackapi.events.SlackMessagePosted;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import se.racasse.raclette.Actions;
-import se.racasse.raclette.lunch.SuggestResult;
-import se.racasse.raclette.vote.AddVoteResponse;
 import se.racasse.raclette.lunch.AddLunchParticipantResponse;
 import se.racasse.raclette.lunch.CreateLunchTimeResponse;
 import se.racasse.raclette.lunch.GetLunchStatusResponse;
 import se.racasse.raclette.lunch.LunchPlaceDecisionResponse;
 import se.racasse.raclette.lunch.RemoveLunchParticipantResponse;
+import se.racasse.raclette.lunch.SuggestResult;
 import se.racasse.raclette.person.AddPersonResponse;
 import se.racasse.raclette.person.GetPersonResponse;
 import se.racasse.raclette.person.Person;
@@ -30,6 +30,7 @@ import se.racasse.raclette.place.Place;
 import se.racasse.raclette.place.PlaceScore;
 import se.racasse.raclette.place.PlaceTagResponse;
 import se.racasse.raclette.tag.TagType;
+import se.racasse.raclette.vote.AddVoteResponse;
 import se.racasse.raclette.vote.Vote;
 import se.racasse.raclette.vote.VoteType;
 
@@ -44,6 +45,8 @@ import static java.util.stream.Collectors.toList;
 @Component
 @Profile("slack")
 public class SlackCommandHandler {
+
+    private final static Logger LOG = LoggerFactory.getLogger(SlackCommandHandler.class);
 
     private final SlackSession session;
     private final Actions actions;
@@ -80,37 +83,37 @@ public class SlackCommandHandler {
         });
     }
 
-    void handleCommand(SlackMessagePosted event, String cmd, List<String> params) {
-        System.out.println(event.getSender().getUserName() + ": " + cmd + " " + params);
+    void handleCommand(SlackUser sender, SlackChannel channel, String cmd, List<String> params) {
+        LOG.debug(sender.getUserName() + ": " + cmd + " " + params);
         switch (cmd) {
             case "help":
-                handleHelpCommand(event, params);
+                handleHelpCommand(sender, channel, params);
                 return;
             case "get":
-                handleGetCommand(event, params);
+                handleGetCommand(sender, channel, params);
                 return;
             case "add":
-                handleAddCommand(event, params);
+                handleAddCommand(sender, channel, params);
                 return;
             case "lunch":
-                handleLunchCommand(event, params);
+                handleLunchCommand(sender, channel, params);
                 return;
             case "vote":
-                handleVoteCommand(event, params);
+                handleVoteCommand(sender, channel, params);
                 return;
             case "tag":
-                handleTagCommand(event, params);
+                handleTagCommand(sender, channel, params);
                 return;
             case "untag":
-                handleUntagCommand(event, params);
+                handleUntagCommand(sender, channel, params);
                 return;
             case "test":
-                handleTestCommand(event, params);
+                handleTestCommand(sender, channel, params);
                 return;
         }
     }
 
-    private void handleHelpCommand(SlackMessagePosted event, List<String> params) {
+    private void handleHelpCommand(SlackUser sender, SlackChannel channel, List<String> params) {
         final ImmutableList.Builder<String> msg = ImmutableList.builder();
         msg.add("`get` get information about stuff");
         msg.add("• `get places` list all places");
@@ -141,43 +144,43 @@ public class SlackCommandHandler {
         msg.add("`add` add stuff");
         msg.add("• `add place [name]` add a place, keep it to one lower case word for simplicity");
         msg.add("• `add me` add me as a person @raclette knows about");
-        sendMultilineMessage(event.getChannel(), msg.build());
+        sendMultilineMessage(channel, msg.build());
     }
 
-    private void handleGetCommand(SlackMessagePosted event, List<String> params) {
+    private void handleGetCommand(SlackUser sender, SlackChannel channel, List<String> params) {
         switch (params.get(0).toLowerCase()) {
             case "me":
-                handleGetUser(event, event.getSender().getUserName());
+                handleGetUser(channel, sender.getUserName());
                 return;
             case "place":
-                handleGetPlace(event, params.get(1));
+                handleGetPlace(sender, channel, params.get(1));
                 return;
             case "places":
-                handleGetPlaces(event);
+                handleGetPlaces(sender, channel);
                 return;
             case "person":
-                handleGetUser(event, params.get(1));
+                handleGetUser(channel, params.get(1));
                 return;
         }
-        sendMessage(event.getChannel(), "What?");
+        sendMessage(channel, "What?");
     }
 
-    private void handleGetPlaces(SlackMessagePosted event) {
+    private void handleGetPlaces(SlackUser sender, SlackChannel channel) {
         final GetAllPlacesResponse response = actions.getAllPlaces();
         if (response.successful()) {
-            sendMultilineMessage(event.getChannel(),
+            sendMultilineMessage(channel,
                     response.places.stream()
                             .map(p -> String.format("• %s - [%s]", p.name, Joiner.on(',').join(p.tags)))
                             .collect(toList()));
         } else {
-            sendMessage(event.getChannel(), response.errorMessage);
+            sendMessage(channel, response.errorMessage);
         }
     }
 
-    private void handleGetPlace(SlackMessagePosted event, String name) {
+    private void handleGetPlace(SlackUser sender, SlackChannel channel, String name) {
         final GetPlaceResponse response = actions.getPlace(name);
         if (!response.successful()) {
-            sendMessage(event.getChannel(), response.errorMessage);
+            sendMessage(channel, response.errorMessage);
             return;
         }
         final Place p = response.place.get();
@@ -199,13 +202,13 @@ public class SlackCommandHandler {
                     .map(v -> v.personName)
                     .collect(toList()));
         }
-        sendMultilineMessage(event.getChannel(), msg.build());
+        sendMultilineMessage(channel, msg.build());
     }
 
-    private void handleGetUser(SlackMessagePosted event, String name) {
+    private void handleGetUser(SlackChannel channel, String name) {
         final GetPersonResponse response = actions.getPerson(name);
         if (!response.successful()) {
-            sendMessage(event.getChannel(), response.errorMessage);
+            sendMessage(channel, response.errorMessage);
             return;
         }
         final Person p = response.person.get();
@@ -242,96 +245,96 @@ public class SlackCommandHandler {
                 msg.add(s);
             });
         }
-        sendMultilineMessage(event.getChannel(), msg.build());
+        sendMultilineMessage(channel, msg.build());
     }
 
-    private void handleVoteCommand(SlackMessagePosted event, List<String> params) {
+    private void handleVoteCommand(SlackUser sender, SlackChannel channel, List<String> params) {
         final String placeName = params.get(0);
         final VoteType type = VoteType.valueOf(params.get(1).toUpperCase());
-        final String me = event.getSender().getUserName();
+        final String me = sender.getUserName();
         final AddVoteResponse response = actions.addVote(me, placeName, type);
         if (response.successful()) {
-            sendMessage(event.getChannel(), String.format("Added %s-vote for %s", type.name().toLowerCase(), response.place.get().name));
+            sendMessage(channel, String.format("Added %s-vote for %s", type.name().toLowerCase(), response.place.get().name));
         } else {
-            sendMessage(event.getChannel(), response.errorMessage);
+            sendMessage(channel, response.errorMessage);
         }
     }
 
-    private void handleTagCommand(SlackMessagePosted event, List<String> params) {
+    private void handleTagCommand(SlackUser sender, SlackChannel channel, List<String> params) {
         switch (params.get(0).toLowerCase()) {
             case "place":
-                handlePlaceTag(event, params);
+                handlePlaceTag(sender, channel, params);
                 return;
             case "prefer":
-                handlePersonTag(event, params, TagType.PREFER);
+                handlePersonTag(sender, channel, params, TagType.PREFER);
                 return;
             case "require":
-                handlePersonTag(event, params, TagType.REQUIRE);
+                handlePersonTag(sender, channel, params, TagType.REQUIRE);
                 return;
         }
-        sendMessage(event.getChannel(), "What?");
+        sendMessage(channel, "What?");
     }
 
-    private void handleUntagCommand(SlackMessagePosted event, List<String> params) {
+    private void handleUntagCommand(SlackUser sender, SlackChannel channel, List<String> params) {
         switch (params.get(0).toLowerCase()) {
             case "place":
-                handlePlaceUntag(event, params);
+                handlePlaceUntag(sender, channel, params);
                 return;
             case "prefer":
-                handlePersonUntag(event, params, TagType.PREFER);
+                handlePersonUntag(sender, channel, params, TagType.PREFER);
                 return;
             case "require":
-                handlePersonUntag(event, params, TagType.REQUIRE);
+                handlePersonUntag(sender, channel, params, TagType.REQUIRE);
                 return;
         }
-        sendMessage(event.getChannel(), "What?");
+        sendMessage(channel, "What?");
     }
 
-    private void handlePlaceTag(SlackMessagePosted event, List<String> params) {
+    private void handlePlaceTag(SlackUser sender, SlackChannel channel, List<String> params) {
         final String name = params.get(1);
         final String tag = params.get(2);
         final PlaceTagResponse response = actions.addPlaceTag(name, tag);
         if (response.successful()) {
-            sendMessage(event.getChannel(), String.format("%s is now tagged with '%s'", name, tag));
+            sendMessage(channel, String.format("%s is now tagged with '%s'", name, tag));
         } else {
-            sendMessage(event.getChannel(), response.errorMessage);
+            sendMessage(channel, response.errorMessage);
         }
     }
 
-    private void handlePersonTag(SlackMessagePosted event, List<String> params, TagType type) {
+    private void handlePersonTag(SlackUser sender, SlackChannel channel, List<String> params, TagType type) {
         final String tag = params.get(1);
-        String me = event.getSender().getUserName();
+        String me = sender.getUserName();
         final PersonTagResponse response = actions.addPersonTag(me, tag, type);
         if (response.successful()) {
-            sendMessage(event.getChannel(), String.format("You now %s %s", type.name().toLowerCase(), tag));
+            sendMessage(channel, String.format("You now %s %s", type.name().toLowerCase(), tag));
         } else {
-            sendMessage(event.getChannel(), response.errorMessage);
+            sendMessage(channel, response.errorMessage);
         }
     }
 
-    private void handlePlaceUntag(SlackMessagePosted event, List<String> params) {
+    private void handlePlaceUntag(SlackUser sender, SlackChannel channel, List<String> params) {
         final String name = params.get(1);
         final String tag = params.get(2);
         final PlaceTagResponse response = actions.removePlaceTag(name, tag);
         if (response.successful()) {
-            sendMessage(event.getChannel(), String.format("Tag '%s' was removed from %s", tag, name));
+            sendMessage(channel, String.format("Tag '%s' was removed from %s", tag, name));
         } else {
-            sendMessage(event.getChannel(), response.errorMessage);
+            sendMessage(channel, response.errorMessage);
         }
     }
 
-    private void handlePersonUntag(SlackMessagePosted event, List<String> params, TagType type) {
+    private void handlePersonUntag(SlackUser sender, SlackChannel channel, List<String> params, TagType type) {
         final String tag = params.get(1);
-        String me = event.getSender().getUserName();
+        String me = sender.getUserName();
         final PersonTagResponse response = actions.removePersonTag(me, tag, type);
         if (response.successful()) {
-            sendMessage(event.getChannel(), String.format("You no longer %s %s", type.name().toLowerCase(), tag));
+            sendMessage(channel, String.format("You no longer %s %s", type.name().toLowerCase(), tag));
         } else {
-            sendMessage(event.getChannel(), response.errorMessage);
+            sendMessage(channel, response.errorMessage);
         }
     }
 
-    private void handleDecideCommand(SlackMessagePosted event, List<String> params) {
+    private void handleDecideCommand(SlackUser sender, SlackChannel channel, List<String> params) {
         final LunchPlaceDecisionResponse response;
         if (params.size() > 1) {
             final String name = params.get(1);
@@ -340,51 +343,51 @@ public class SlackCommandHandler {
             response = actions.decideSuggestedLunchPlace();
         }
         if (response.successful()) {
-            sendMessage(event.getChannel(), String.format("Today's lunch will be at *%s*", response.decidedPlace.get().name));
+            sendMessage(channel, String.format("Today's lunch will be at *%s*", response.decidedPlace.get().name));
         } else {
-            sendMessage(event.getChannel(), response.errorMessage);
+            sendMessage(channel, response.errorMessage);
         }
     }
 
-    private void handleLunchCommand(SlackMessagePosted event, List<String> params) {
+    private void handleLunchCommand(SlackUser sender, SlackChannel channel, List<String> params) {
         switch (params.get(0).toLowerCase()) {
             case "status":
-                handleLunchStatus(event);
+                handleLunchStatus(sender, channel);
                 return;
             case "add":
-                handleLunchAdd(event, params);
+                handleLunchAdd(sender, channel, params);
                 return;
             case "remove":
-                handleLunchRemove(event, params);
+                handleLunchRemove(sender, channel, params);
                 return;
             case "vote":
-                handleLunchVote(event, params);
+                handleLunchVote(sender, channel, params);
                 return;
             case "decide":
-                handleDecideCommand(event, params);
+                handleDecideCommand(sender, channel, params);
                 return;
         }
-        sendMessage(event.getChannel(), "What?");
+        sendMessage(channel, "What?");
     }
 
-    private void handleLunchVote(SlackMessagePosted event, List<String> params) {
-        final String me = event.getSender().getUserName();
+    private void handleLunchVote(SlackUser sender, SlackChannel channel, List<String> params) {
+        final String me = sender.getUserName();
         final String placeName = params.get(1);
         final VoteType type = VoteType.valueOf(params.get(2).toUpperCase());
         final AddVoteResponse response = actions.addLunchVote(me, placeName, type);
         if (response.successful()) {
-            sendMessage(event.getChannel(), String.format("Added lunch %s-vote for %s", type.name().toLowerCase(), placeName));
+            sendMessage(channel, String.format("Added lunch %s-vote for %s", type.name().toLowerCase(), placeName));
         } else {
-            sendMessage(event.getChannel(), response.errorMessage);
+            sendMessage(channel, response.errorMessage);
         }
     }
 
-    private void handleLunchAdd(SlackMessagePosted event, List<String> params) {
+    private void handleLunchAdd(SlackUser sender, SlackChannel channel, List<String> params) {
         final String name;
         if (params.get(1).equals("me")) {
-            addParticipant(event.getChannel(), event.getSender().getUserName());
+            addParticipant(channel, sender.getUserName());
         } else {
-            addParticipant(event.getChannel(), params.get(1));
+            addParticipant(channel, params.get(1));
         }
     }
 
@@ -406,16 +409,16 @@ public class SlackCommandHandler {
         }
     }
 
-    private void handleLunchRemove(SlackMessagePosted event, List<String> params) {
+    private void handleLunchRemove(SlackUser sender, SlackChannel channel, List<String> params) {
         if (params.get(1).equals("me")) {
-            removeParticipant(event.getChannel(), event.getSender().getUserName());
+            removeParticipant(channel, sender.getUserName());
         } else {
             final String name = params.get(1);
-            removeParticipant(event.getChannel(), name);
+            removeParticipant(channel, name);
         }
     }
 
-    private void handleLunchStatus(SlackMessagePosted event) {
+    private void handleLunchStatus(SlackUser sender, SlackChannel channel) {
         final GetLunchStatusResponse response = actions.getLunchStatus();
         final Map<Integer, Person> participants = Maps.uniqueIndex(response.participants, p -> p.id);
 
@@ -450,7 +453,7 @@ public class SlackCommandHandler {
                 msg.add(String.format("%d. %s (%.2f)", i + 1, score.place.name, score.score));
             }
         }
-        sendMultilineMessage(event.getChannel(), msg.build());
+        sendMultilineMessage(channel, msg.build());
     }
 
     private String voteTypeToEmoji(VoteType voteType) {
@@ -463,13 +466,13 @@ public class SlackCommandHandler {
         throw new IllegalStateException();
     }
 
-    private void handleAddCommand(SlackMessagePosted event, List<String> params) {
+    private void handleAddCommand(SlackUser sender, SlackChannel channel, List<String> params) {
         switch (params.get(0).toLowerCase()) {
             case "place":
-                handleAddPlace(event, params);
+                handleAddPlace(sender, channel, params);
                 return;
             case "me":
-                handleAddMe(event);
+                handleAddMe(sender, channel);
                 return;
             case "lunchtime":
                 createLunchTimeForToday();
@@ -478,36 +481,38 @@ public class SlackCommandHandler {
                 addParticipants();
                 return;
         }
-        sendMessage(event.getChannel(), "What?");
+        sendMessage(channel, "What?");
     }
 
-    private void handleAddMe(SlackMessagePosted event) {
-        String name = event.getSender().getUserName();
+    private void handleAddMe(SlackUser sender, SlackChannel channel) {
+        String name = sender.getUserName();
         final AddPersonResponse response = actions.addPerson(name);
         if (response.successful()) {
-            sendMessage(event.getChannel(), String.format("Welcome %s!", response.person.name));
+            sendMessage(channel, String.format("Welcome %s!", response.person.name));
         } else {
-            sendMessage(event.getChannel(), response.errorMessage);
+            sendMessage(channel, response.errorMessage);
         }
     }
 
-    private void handleAddPlace(SlackMessagePosted event, List<String> params) {
+    private void handleAddPlace(SlackUser sender, SlackChannel channel, List<String> params) {
         final AddPlaceResponse response = actions.addPlace(params.get(1));
         if (response.successful()) {
-            sendMessage(event.getChannel(), String.format("Place '%s' is now created", response.place.name));
+            sendMessage(channel, String.format("Place '%s' is now created", response.place.name));
         } else {
-            sendMessage(event.getChannel(), response.errorMessage);
+            sendMessage(channel, response.errorMessage);
         }
     }
 
-    private void handleTestCommand(SlackMessagePosted event, List<String> params) {
+    private void handleTestCommand(SlackUser sender, SlackChannel channel, List<String> params) {
+        session.refetchUsers();
         session.getUsers().forEach(u -> {
             String s = u.getUserName() + ": " + u.getPresence().name();
-            sendMessage(event.getChannel(), s);
+            sendMessage(channel, s);
         });
     }
 
     private void addParticipants() {
+        session.refetchUsers();
         session.getUsers().forEach(u -> {
             if (u.getPresence().name().equals("ACTIVE")) {
                 addParticipant(lunchChannel, u.getUserName());

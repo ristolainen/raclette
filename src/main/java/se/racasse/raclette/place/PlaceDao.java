@@ -1,6 +1,7 @@
 package se.racasse.raclette.place;
 
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.SingleColumnRowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
@@ -100,4 +101,13 @@ class PlaceDao {
                         .addValue("type", type.name().substring(0, 1)));
     }
 
+    void deleteVote(int personId, int placeId, VoteType type) {
+        int voteId = jdbcTemplate.queryForObject("select place_vote_id from place_vote where person_id = :personId && place_id = :placeId && type = :type limit 1",
+                new MapSqlParameterSource()
+                        .addValue("personId", personId)
+                        .addValue("placeId", placeId)
+                        .addValue("type", type.name().substring(0, 1)),
+                SingleColumnRowMapper.newInstance(Integer.class));
+        jdbcTemplate.update("delete from place_vote where place_vote_id = :id", new MapSqlParameterSource("id", voteId));
+    }
 }

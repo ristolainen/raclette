@@ -1,5 +1,6 @@
 package se.racasse.raclette.place;
 
+import se.racasse.raclette.lunch.LunchVisit;
 import se.racasse.raclette.person.Person;
 import se.racasse.raclette.tag.Tag;
 import se.racasse.raclette.vote.Vote;
@@ -29,7 +30,7 @@ public class Place {
                 + scoreLunchDownVotes(scoringContext.lunchDownVotes)
                 + scoreUpVotes(scoringContext.persons)
                 + scoreDownVotes(scoringContext.persons)
-                + timeSinceLastLunchBoost(scoringContext.latestLunch);
+                + scoreTimeSinceLastLunch(scoringContext.personLunchVisits.values());
     }
 
     private int scoreTags(Collection<Person> persons) {
@@ -59,12 +60,12 @@ public class Place {
         return votes.stream().filter(v -> personIds.contains(v.personId)).collect(Collectors.toList());
     }
 
-    private float timeSinceLastLunchBoost(LocalDate latestLunch) {
-        int daysBetween = 30;
-        if (latestLunch != null) {
-            daysBetween = Period.between(latestLunch, LocalDate.now()).getDays();
-        }
-        return (float) (1 + 5 * Math.log(daysBetween));
+    private float scoreTimeSinceLastLunch(Collection<LunchVisit> visits) {
+        return visits.stream()
+                .map(visit -> visit == null ? 30 : Period.between(visit.lunchTime, LocalDate.now()).getDays())
+                .map(days -> (1 + 0.1 * Math.log(days)))
+                .reduce(0d, Double::sum)
+                .floatValue();
     }
 
 }

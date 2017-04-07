@@ -5,11 +5,13 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Component;
+import se.racasse.raclette.lunch.LunchVisit;
 import se.racasse.raclette.tag.Tag;
 import se.racasse.raclette.tag.TagType;
 import se.racasse.raclette.vote.Vote;
 import se.racasse.raclette.vote.VoteType;
 
+import java.sql.Date;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Optional;
@@ -102,5 +104,20 @@ class PersonDao {
                 });
     }
 
+    Collection<LunchVisit> getLatestLunchVisits(int personId) {
+        return jdbcTemplate.query(
+                "select max(l.lunch_time_id) as lunch_time, place_id from lunch_participant lp " +
+                        "left join lunch l on l.lunch_time_id = lp.lunch_time_id " +
+                        "where person_id = :personId group by place_id",
+                new MapSqlParameterSource("personId", personId),
+                (rs, i) -> {
+                    LunchVisit visit = new LunchVisit();
+                    visit.personId = personId;
+                    visit.placeId = rs.getInt("place_id");
+                    Date lunchTime = rs.getDate("lunch_time");
+                    visit.lunchTime = lunchTime == null ? null : lunchTime.toLocalDate();
+                    return visit;
+                });
+    }
 
 }

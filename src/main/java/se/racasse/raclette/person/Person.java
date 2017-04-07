@@ -2,6 +2,7 @@ package se.racasse.raclette.person;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import se.racasse.raclette.lunch.LunchVisit;
 import se.racasse.raclette.tag.Tag;
 import se.racasse.raclette.vote.Vote;
 
@@ -16,6 +17,7 @@ public class Person {
     public Collection<Tag> requiredTags = new HashSet<>();
     public Collection<Tag> preferredTags = new HashSet<>();
     public Collection<Vote> placeVotes = new HashSet<>();
+    public Collection<LunchVisit> latestVisits = new HashSet<>();
 
     public boolean accepts(Collection<Tag> placeTags) {
         return requiredTags.stream().allMatch(placeTags::contains);

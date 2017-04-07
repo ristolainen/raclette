@@ -5,6 +5,9 @@ import se.racasse.raclette.place.Place;
 import se.racasse.raclette.place.PlaceScore;
 import se.racasse.raclette.place.PlaceScoringContext;
 
+import java.util.HashMap;
+import java.util.Optional;
+
 class LunchSuggestor {
 
     private final LunchContext lunchContext;
@@ -30,10 +33,14 @@ class LunchSuggestor {
 
     private PlaceScore scorePlace(Place place) {
         final PlaceScoringContext scoringContext = new PlaceScoringContext();
-        scoringContext.latestLunch = lunchContext.latestLunches.get(place.id);
         scoringContext.persons = lunchContext.participants;
         scoringContext.lunchUpVotes = lunchContext.upVotes.get(place.id);
         scoringContext.lunchDownVotes = lunchContext.downVotes.get(place.id);
+        scoringContext.personLunchVisits = new HashMap<>();
+        lunchContext.participants.forEach(person -> {
+            Optional<LunchVisit> placeVisit = person.latestVisits.stream().filter(v -> v.placeId == place.id).findFirst();
+            scoringContext.personLunchVisits.put(person.id, placeVisit.orElse(null));
+        });
         final float score = place.score(scoringContext);
         final PlaceScore placeScore = new PlaceScore();
         placeScore.place = place;

@@ -12,4 +12,8 @@ public enum VoteType {
         }
         throw new IllegalStateException();
     }
+
+    public VoteType opposite() {
+        return this == UP ? DOWN : UP;
+    }
 }

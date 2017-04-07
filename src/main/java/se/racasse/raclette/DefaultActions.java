@@ -237,7 +237,18 @@ public class DefaultActions implements Actions {
             response.errorMessage = String.format("I know no place called '%s'", placeName);
             return response;
         }
-        placeService.addVote(person.get().id, place.get().id, type);
+        long voteCount = person.get().placeVotes.stream().filter(vote -> vote.placeId == place.get().id && vote.type == type).count();
+        if (voteCount >= 5) {
+            final AddVoteResponse response = new AddVoteResponse(false);
+            response.errorMessage = "No more than 5 up- or down votes can be given to any place";
+            return response;
+        }
+        boolean hasOppositeVotes = person.get().placeVotes.stream().anyMatch(vote -> vote.placeId == place.get().id && vote.type == type.opposite());
+        if (hasOppositeVotes) {
+            placeService.removeVote(person.get().id, place.get().id, type.opposite());
+        } else {
+            placeService.addVote(person.get().id, place.get().id, type);
+        }
         final AddVoteResponse response = new AddVoteResponse(true);
         response.person = person;
         response.place = place;
@@ -264,7 +275,12 @@ public class DefaultActions implements Actions {
             response.errorMessage = String.format("I know no place called '%s'", placeName);
             return response;
         }
-        lunchService.addLunchVote(person.get().id, lunchTime, place.get().id, type);
+        boolean hasOppositeVote = lunchService.lunchVoteExists(person.get().id, lunchTime, place.get().id, type.opposite());
+        if (hasOppositeVote) {
+            lunchService.removeLunchVote(person.get().id, lunchTime, place.get().id);
+        } else {
+            lunchService.addLunchVote(person.get().id, lunchTime, place.get().id, type);
+        }
         final AddVoteResponse response = new AddVoteResponse(true);
         response.person = person;
         response.place = place;
