@@ -23,8 +23,11 @@ public class Person {
         return requiredTags.stream().allMatch(placeTags::contains);
     }
 
-    public int scoreTags(Collection<Tag> placeTags) {
-        return tagIntersection(preferredTags, placeTags).size();
+    public double scoreTags(Collection<Tag> placeTags) {
+        if (placeTags.size() == 0) {
+            return 0d;
+        }
+        return (1d / placeTags.size()) * tagIntersection(preferredTags, placeTags).size();
     }
 
     private Set<Tag> tagIntersection(Collection<Tag> tags, Collection<Tag> placeTags) {

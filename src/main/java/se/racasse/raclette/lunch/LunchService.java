@@ -107,7 +107,7 @@ public class LunchService {
     }
 
     public void removeLunchVote(int personId, LocalDate lunchTime, int placeId) {
-        lunchDao.removeLunchVotes(personId, lunchTime, placeId);
+        lunchDao.removeLunchVote(personId, lunchTime, placeId);
     }
 
     public void addLunchVote(int personId, LocalDate lunchTime, int placeId, VoteType type) {

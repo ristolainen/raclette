@@ -33,8 +33,8 @@ public class Place {
                 + scoreTimeSinceLastLunch(scoringContext.personLunchVisits.values());
     }
 
-    private int scoreTags(Collection<Person> persons) {
-        return persons.stream().mapToInt(person -> person.scoreTags(tags)).sum();
+    private float scoreTags(Collection<Person> persons) {
+        return (float) (1.5d * persons.stream().mapToDouble(person -> person.scoreTags(tags)).sum());
     }
 
     private int scoreLunchUpVotes(Collection<Vote> votes) {
@@ -47,12 +47,12 @@ public class Place {
 
     private float scoreUpVotes(Collection<Person> persons) {
         final Collection<Vote> votes = filterVotesOnPersons(upVotes, persons);
-        return 1.5f * votes.size();
+        return 1.0f * votes.size();
     }
 
     private float scoreDownVotes(Collection<Person> persons) {
         final Collection<Vote> votes = filterVotesOnPersons(downVotes, persons);
-        return -1.5f * votes.size();
+        return -1.0f * votes.size();
     }
 
     private Collection<Vote> filterVotesOnPersons(Collection<Vote> votes, Collection<Person> persons) {
@@ -63,9 +63,9 @@ public class Place {
     private float scoreTimeSinceLastLunch(Collection<LunchVisit> visits) {
         return visits.stream()
                 .map(visit -> visit == null ? 30 : Period.between(visit.lunchTime, LocalDate.now()).getDays())
-                .map(days -> (1 + 0.1 * Math.log(days)))
+                .map(days -> (1 + 2 * Math.log(days)))
                 .reduce(0d, Double::sum)
-                .floatValue();
+                .floatValue() / visits.size();
     }
 
 }

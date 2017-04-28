@@ -515,7 +515,9 @@ public class SlackCommandHandler {
         session.refetchUsers();
         session.getUsers().forEach(u -> {
             if (u.getPresence().name().equals("ACTIVE")) {
-                addParticipant(lunchChannel, u.getUserName());
+                if (actions.getPerson(u.getUserName()).person.isPresent()) {
+                    addParticipant(lunchChannel, u.getUserName());
+                }
             }
         });
     }

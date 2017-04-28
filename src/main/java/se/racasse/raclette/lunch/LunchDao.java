@@ -127,11 +127,11 @@ class LunchDao {
                 new MapSqlParameterSource().addValue("lunchTimeId", lunchTime).addValue("personId", personId));
     }
 
-    void removeLunchVotes(int personId, LocalDate lunchTime, int placeId) {
-        jdbcTemplate.update("delete from lunch_vote where person_id = :personId and lunch_time_id = :lunchTimeId and person_id = :personId",
+    void removeLunchVote(int personId, LocalDate lunchTime, int placeId) {
+        jdbcTemplate.update("delete from lunch_vote where person_id = :personId and lunch_time_id = :lunchTimeId and place_id = :placeId",
                 new MapSqlParameterSource()
                         .addValue("personId", personId)
                         .addValue("lunchTimeId", lunchTime)
-                        .addValue("personId", personId));
+                        .addValue("placeId", placeId));
     }
 }
